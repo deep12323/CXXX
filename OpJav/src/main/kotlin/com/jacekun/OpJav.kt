@@ -8,7 +8,6 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import org.jsoup.nodes.Element
 
 class OpJav : MainAPI() {
@@ -21,14 +20,13 @@ class OpJav : MainAPI() {
     override val hasQuickSearch = false
     override val vpnStatus = VPNStatus.MightBeNeeded
 
-    private val interceptor = CloudflareKiller()
     private val prefix = "Watch JAV"
 
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val document = app.get(mainUrl, interceptor = interceptor).document
+        val document = app.get(mainUrl).document
         val all = ArrayList<HomePageList>()
         val body = document.getElementsByTag("body")
         val rows = mutableListOf<Pair<String, Element>>()
@@ -97,7 +95,7 @@ class OpJav : MainAPI() {
 
         for (page in 1..3) {
             val url = if (page == 1) "$mainUrl/search/$encoded/" else "$mainUrl/search/$encoded/page/$page/"
-            val document = app.get(url, interceptor = interceptor).document
+            val document = app.get(url).document
                 .select("div.block-body > div.list-film.row > div, div.list-film-simple > div.item")
 
             val results = document.mapNotNull {
@@ -129,7 +127,7 @@ class OpJav : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val doc = app.get(url, interceptor = interceptor).document
+        val doc = app.get(url).document
         val poster = fixUrlNull(
             doc.select("meta[itemprop=image]").getOrNull(1)?.attr("content")?.trim()
                 ?: doc.selectFirst("meta[property='og:image']")?.attr("content")
@@ -149,7 +147,7 @@ class OpJav : MainAPI() {
 
         if (mainLink.isNotBlank()) {
             runCatching {
-                val epsDoc = app.get(url = fixUrl(mainLink), referer = mainUrl, interceptor = interceptor).document
+                val epsDoc = app.get(url = fixUrl(mainLink), referer = mainUrl).document
                 epsDoc.select("div.block.servers li").mapNotNull {
                     val inner = it.selectFirst("a") ?: return@mapNotNull null
                     val linkUrl = inner.attr("href")
@@ -164,7 +162,7 @@ class OpJav : MainAPI() {
                         Pair("NextEpisode", "1"),
                         Pair("EpisodeID", it.second)
                     )
-                    app.post("$mainUrl/ajax", headers = ajaxHead, data = ajaxData, interceptor = interceptor)
+                    app.post("$mainUrl/ajax", headers = ajaxHead, data = ajaxData)
                         .document.select("iframe").forEach { iframe ->
                             val serverLink = iframe.attr("src").trim()
                             if (serverLink.isNotBlank()) {

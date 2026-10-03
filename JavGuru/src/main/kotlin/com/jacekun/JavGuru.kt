@@ -7,7 +7,6 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class JavGuru : MainAPI() {
     private val globaltvType = TvType.NSFW
@@ -19,7 +18,6 @@ class JavGuru : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch = false
     override val vpnStatus = VPNStatus.MightBeNeeded
-    private val interceptor = CloudflareKiller()
 
     override suspend fun getMainPage(
         page: Int,
@@ -27,7 +25,7 @@ class JavGuru : MainAPI() {
     ): HomePageResponse {
         val all = ArrayList<HomePageList>()
         val url = if (page <= 1) mainUrl else "$mainUrl/page/$page/"
-        val doc = app.get(url, interceptor = interceptor).document
+        val doc = app.get(url).document
 
         val items = doc.select("main.site-main div.row, div.inside-article").mapNotNull {
             val aa = it.selectFirst("div.imgg a, a") ?: return@mapNotNull null
@@ -56,7 +54,7 @@ class JavGuru : MainAPI() {
 
         for (page in 1..3) {
             val url = if (page == 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$page/?s=$encoded"
-            val doc = app.get(url, interceptor = interceptor).document
+            val doc = app.get(url).document
             val results = doc.select("main.site-main div.row, div.inside-article").mapNotNull {
                 val aa = it.selectFirst("div.imgg a, a") ?: return@mapNotNull null
                 val href = fixUrlNull(aa.attr("href")) ?: return@mapNotNull null
@@ -79,7 +77,7 @@ class JavGuru : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val doc = app.get(url, interceptor = interceptor).document
+        val doc = app.get(url).document
         val poster = fixUrlNull(
             doc.selectFirst("div.large-screenimg img, meta[property='og:image']")?.attr("src")
                 ?: doc.selectFirst("meta[property='og:image']")?.attr("content")

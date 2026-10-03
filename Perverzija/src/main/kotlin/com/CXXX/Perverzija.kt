@@ -83,7 +83,6 @@ class Perverzija : MainAPI() {
         "$mainUrl/tag/family-taboo/page/%d/" to "Family Taboo",
     )
 
-
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest

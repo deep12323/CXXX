@@ -4,7 +4,6 @@ import android.util.Log
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.mvvm.logError
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.getQualityFromName
@@ -20,13 +19,11 @@ class HentaiHaven : MainAPI() {
     override val hasMainPage= true
     override val hasQuickSearch = false
 
-    private val interceptor = CloudflareKiller()
-
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val doc = app.get(mainUrl, interceptor = interceptor).document
+        val doc = app.get(mainUrl).document
         val all = ArrayList<HomePageList>()
 
         doc.getElementsByTag("body").select("div.c-tabs-item")
@@ -50,14 +47,14 @@ class HentaiHaven : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         val searchUrl = "${mainUrl}/?s=${query}&post_type=wp-manga"
-        return app.get(searchUrl, interceptor = interceptor).document
+        return app.get(searchUrl).document
             .select("div.c-tabs-item div.row.c-tabs-item__content")
             .getResults(this.name)
     }
 
     override suspend fun load(url: String): LoadResponse {
         //TODO: Load polishing
-        val doc = app.get(url, interceptor = interceptor).document
+        val doc = app.get(url).document
         //Log.i(this.name, "Result => (url) ${url}")
         val poster = doc.select("meta[property=og:image]")
             .firstOrNull()?.attr("content")
@@ -120,11 +117,11 @@ class HentaiHaven : MainAPI() {
             val reA = Regex("(?<=var en =)(.*?)(?=';)", setOf(RegexOption.DOT_MATCHES_ALL))
             val reB = Regex("(?<=var iv =)(.*?)(?=';)", setOf(RegexOption.DOT_MATCHES_ALL))
 
-            app.get(data, interceptor = interceptor).document.selectFirst("div.player_logic_item iframe")
+            app.get(data).document.selectFirst("div.player_logic_item iframe")
                 ?.attr("src")?.let { epLink ->
 
                     Log.i(name, "Loading ep link => $epLink")
-                    val scrAppGet = app.get(epLink, referer = data, interceptor = interceptor)
+                    val scrAppGet = app.get(epLink, referer = data)
                     val scrDoc = scrAppGet.document.getElementsByTag("script").toString()
                     //Log.i(name, "Loading scrDoc => (${scrAppGet.code}) $scrDoc")
                     if (scrDoc.isNotBlank()) {
@@ -140,7 +137,6 @@ class HentaiHaven : MainAPI() {
 
                         val doc = app.post(
                             url = requestLink,
-                            interceptor = interceptor,
                             headers = mapOf(
 //                              Pair("mode", "cors"),
 //                              Pair("Content-Type", "multipart/form-data"),

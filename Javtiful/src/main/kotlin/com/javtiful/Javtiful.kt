@@ -7,10 +7,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class Javtiful : MainAPI() {
     override var mainUrl = "https://javtiful.com"
@@ -19,7 +17,6 @@ class Javtiful : MainAPI() {
     override val hasDownloadSupport = true
     override val vpnStatus = VPNStatus.MightBeNeeded
     override val supportedTypes = setOf(TvType.NSFW)
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "trending" to "Trending",
@@ -38,7 +35,7 @@ class Javtiful : MainAPI() {
         } else {
             "$mainUrl/${request.data}?page=$page"
         }
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val home = document.select("article.front-video-card, div.front-video-card, div.card.border-0")
             .mapNotNull { it.toSearchResult() }
 
@@ -80,7 +77,7 @@ class Javtiful : MainAPI() {
 
         for (page in 1..3) {
             val url = "$mainUrl/search?q=$encoded&page=$page"
-            val document = app.get(url, interceptor = interceptor).document
+            val document = app.get(url).document
             val results = document.select("article.front-video-card, div.front-video-card, div.card.border-0")
                 .mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
@@ -92,7 +89,7 @@ class Javtiful : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - Javtiful").trim()
         val poster = fixUrlNull(document.selectFirst("meta[property='og:image']")?.attr("content"))
@@ -128,7 +125,7 @@ class Javtiful : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
 
         // 1. Direct HTML5 source tags
         val sources = document.select("video source[src], source[src]")
@@ -159,8 +156,7 @@ class Javtiful : MainAPI() {
                 val m3u8 = app.post(
                     "$mainUrl/ajax/get_cdn",
                     data = form,
-                    headers = mapOf("Referer" to data, "X-Requested-With" to "XMLHttpRequest"),
-                    interceptor = interceptor
+                    headers = mapOf("Referer" to data, "X-Requested-With" to "XMLHttpRequest")
                 ).parsedSafe<Response>()?.playlists
 
                 if (!m3u8.isNullOrBlank()) {

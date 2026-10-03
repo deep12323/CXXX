@@ -2,7 +2,6 @@ package com.MissAv
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class MissAVProvider : MainAPI() {
@@ -14,7 +13,6 @@ class MissAVProvider : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
     val subtitleCatUrl = "https://www.subtitlecat.com"
 
     override val mainPage = mainPageOf(
@@ -29,7 +27,7 @@ class MissAVProvider : MainAPI() {
             "/en/klive" to "Korean Live AV"
         )
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-            val document = app.get("$mainUrl${request.data}?page=$page", interceptor = interceptor).document
+            val document = app.get("$mainUrl${request.data}?page=$page").document
             val responseList  = document.select(".thumbnail").mapNotNull { it.toSearchResult() }
             return newHomePageResponse(HomePageList(request.name, responseList, isHorizontalImages = true),hasNext = true)
 
@@ -50,7 +48,7 @@ class MissAVProvider : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..7) {
-            val document = app.get("$mainUrl/en/search/$query?page=$i", interceptor = interceptor).document
+            val document = app.get("$mainUrl/en/search/$query?page=$i").document
             //val document = app.get("${mainUrl}/page/$i/?s=$query").document
 
             val results = document.select(".thumbnail").mapNotNull { it.toSearchResult() }
@@ -83,7 +81,7 @@ class MissAVProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
         val poster = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -98,7 +96,7 @@ class MissAVProvider : MainAPI() {
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
 
 
-            val data = app.get(data, interceptor = interceptor)
+            val data = app.get(data)
             val doc = data.document
             getAndUnpack(data.text).let { unpackedText ->
                 val linkList = unpackedText.split(";")

@@ -2,7 +2,6 @@ package com.CXXX
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.mvvm.logError
@@ -18,8 +17,6 @@ class FullPorner : MainAPI() {
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
 
-    private val interceptor = CloudflareKiller()
-
     override val mainPage = mainPageOf(
         "${mainUrl}/home/"                to "Featured",
         "${mainUrl}/category/amateur/"    to "Amateur",
@@ -32,7 +29,7 @@ class FullPorner : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("${request.data}${page}", interceptor = interceptor).document
+        val document = app.get("${request.data}${page}").document
         val home = document.select("div.video-block div.video-card").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -57,7 +54,7 @@ class FullPorner : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..15) {
-            val document = app.get("${mainUrl}/search?q=${query.replace(" ", "+")}&p=$i", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/search?q=${query.replace(" ", "+")}&p=$i").document
 
             val results = document.select("div.video-block div.video-card").mapNotNull { it.toSearchResult() }
 
@@ -70,16 +67,16 @@ class FullPorner : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-    val document = app.get(url, interceptor = interceptor).document
+    val document = app.get(url).document
 
     val title = document.selectFirst("div.video-block div.single-video-left div.single-video-title h2")?.text()?.trim().toString()
 
     val iframeUrl = fixUrlNull(document.selectFirst("div.video-block div.single-video-left div.single-video iframe")?.attr("src")) ?: ""
 
-    val iframeDocument = app.get(iframeUrl, interceptor = interceptor).document
+    val iframeDocument = app.get(iframeUrl).document
 
     val videoID = Regex("""var id = \"(.+?)\"""").find(iframeDocument.html())?.groupValues?.get(1)
-    val pornTrexDocument = app.get("https://www.porntrex.com/embed/${videoID}", interceptor = interceptor).document
+    val pornTrexDocument = app.get("https://www.porntrex.com/embed/${videoID}").document
     val matchResult = Regex("""preview_url:\s*'([^']+)'""").find(pornTrexDocument.html())
     val poster = matchResult?.groupValues?.get(1)
     val posterUrl = fixUrlNull("https:$poster")
@@ -106,13 +103,13 @@ class FullPorner : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val iframeUrl = fixUrlNull(document.selectFirst("div.video-block div.single-video-left div.single-video iframe")?.attr("src")) ?: ""
-        val iframeDocument = app.get(iframeUrl, interceptor = interceptor).document
+        val iframeDocument = app.get(iframeUrl).document
         val videoID = Regex("""var id = \"(.+?)\"""").find(iframeDocument.html())?.groupValues?.getOrNull(1)
 
         if (videoID != null) {
-            val pornTrexDocument = app.get("https://www.porntrex.com/embed/$videoID", interceptor = interceptor).document
+            val pornTrexDocument = app.get("https://www.porntrex.com/embed/$videoID").document
             val videoUrlsRegex = Regex("""(?:video_url|video_alt_url2|video_alt_url3): \'(.+?)\',""")
             val matchResults = videoUrlsRegex.findAll(pornTrexDocument.html())
 

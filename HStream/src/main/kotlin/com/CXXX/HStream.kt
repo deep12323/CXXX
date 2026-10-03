@@ -8,7 +8,6 @@ import com.lagradost.cloudstream3.utils.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLDecoder
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class HStream : MainAPI() {
     override var mainUrl              = "https://hstream.moe"
@@ -18,7 +17,6 @@ class HStream : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "${mainUrl}/search?order=recently-uploaded&page=" to "Latest",
@@ -26,7 +24,7 @@ class HStream : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(request.data, interceptor = interceptor).document
+        val document = app.get(request.data).document
         val home = document.select("div.items-center div.w-full > a").mapNotNull {
             it.toSearchResult()
         }
@@ -55,7 +53,7 @@ class HStream : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val searchResponse = mutableListOf<SearchResponse>()
         for (i in 1..2) {
-            val document = app.get("${mainUrl}/search?search=$query&page=$i", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/search?search=$query&page=$i").document
             val results = document.select("div.items-center div.w-full > a").mapNotNull { it.toSearchResult() }
             searchResponse.addAll(results)
             if (results.isEmpty()) break
@@ -64,7 +62,7 @@ class HStream : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title= document.selectFirst("div.relative h1")?.text()?.trim().toString()
         val poster= document.selectFirst("meta[property=og:image]")?.attr("content")
         val description=document.selectFirst("meta[property=og:description]")?.attr("content")
@@ -77,7 +75,7 @@ class HStream : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val response = app.get(data, interceptor = interceptor)
+        val response = app.get(data)
         val cookies = response.headers.values("Set-Cookie")
         val cookieHeader = cookies.joinToString("; ") { it.substringBefore(";") }
         val token = cookies.flatMap { it.split(";") }
@@ -97,7 +95,7 @@ class HStream : MainAPI() {
             "Cookie" to cookieHeader
         )
 
-        val req = app.post("$mainUrl/player/api", headers = headers, requestBody = body, interceptor = interceptor).parsedSafe<PlayerApiResponse>()
+        val req = app.post("$mainUrl/player/api", headers = headers, requestBody = body).parsedSafe<PlayerApiResponse>()
         if (req != null) {
             val urlBase = (req.stream_domains.randomOrNull() ?: "") + "/" + req.stream_url
             val resolutions = listOfNotNull("720", "1080", if (req.resolution == "4k") "2160" else null)

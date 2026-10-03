@@ -4,7 +4,6 @@ import com.lagradost.api.Log
 import org.json.JSONObject
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import okhttp3.Headers
 import okhttp3.Interceptor
@@ -19,7 +18,6 @@ class actionviewphotography : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "video/milf" to "Milf",
@@ -31,7 +29,7 @@ class actionviewphotography : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}?p=$page", interceptor = interceptor).document
+        val document = app.get("$mainUrl/${request.data}?p=$page").document
         val home     = document.select("#list_videos > div.item").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -58,7 +56,7 @@ class actionviewphotography : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..5) {
-            val document = app.get("$mainUrl/video/$query?p=$i", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/video/$query?p=$i").document
             val results = document.select("#list_videos > div.item").mapNotNull { it.toSearchResult() }
             if (!searchResponse.containsAll(results)) {
                 searchResponse.addAll(results)
@@ -72,7 +70,7 @@ class actionviewphotography : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title       = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
         val poster      = fixUrlNull(document.selectFirst("meta[property=og:image]")?.attr("content").toString())
@@ -85,7 +83,7 @@ class actionviewphotography : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val script = document.selectFirst("script:containsData(window.playlist)")
         if (script != null) {
             val jsonString = script.data()

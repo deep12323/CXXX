@@ -1,7 +1,6 @@
 package com.Happy2hub
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -13,8 +12,6 @@ class Happy2hub : MainAPI() {
     override var lang                 = "en"
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "ullu-a/"                              to "Ullu",
@@ -36,7 +33,7 @@ class Happy2hub : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/page/$page", timeout = 20L, interceptor = interceptor).document
+        val document = app.get("$mainUrl/${request.data}/page/$page", timeout = 20L).document
         val home = document.select("div.content-wrap > div > div > div").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -64,7 +61,7 @@ class Happy2hub : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
         val encoded = query.trim().replace(" ", "+")
         for (i in 1..10) {
-            val document = app.get("${mainUrl}/page/$i?s=$encoded", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/page/$i?s=$encoded").document
             val results = document.select("div.content-wrap > div > div > div").mapNotNull { it.toSearchResult() }
             if (results.isEmpty()) break
             val newItems = results.filterNot { item -> searchResponse.any { it.url == item.url } }
@@ -178,7 +175,7 @@ class Happy2hub : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, timeout = 20L, interceptor = interceptor).document
+        val document = app.get(url, timeout = 20L).document
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - Happy2Hub").trim()
         val poster = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -204,7 +201,7 @@ class Happy2hub : MainAPI() {
             .distinct()
 
         for (candidate in candidateLinks.take(4)) {
-            val subDoc = runCatching { app.get(candidate, timeout = 15L, interceptor = interceptor).document }.getOrNull() ?: continue
+            val subDoc = runCatching { app.get(candidate, timeout = 15L).document }.getOrNull() ?: continue
             parseEpisodesIntoMap(subDoc, episodeMap)
         }
 
@@ -306,7 +303,7 @@ class Happy2hub : MainAPI() {
         // 4. If intermediate redirect / download page, follow and extract from it
         if (!handled && (link.contains("happy2hub") || link.contains("download") || link.contains("links") || link.contains("go."))) {
             runCatching {
-                val res = app.get(link, timeout = 15L, allowRedirects = true, interceptor = interceptor)
+                val res = app.get(link, timeout = 15L, allowRedirects = true)
                 val finalUrl = res.url
                 if (finalUrl != link && (finalUrl.contains("pixeldrain") || finalUrl.contains("hubcloud") || finalUrl.contains("vcloud"))) {
                     resolveAndExtract(finalUrl, subtitleCallback, callback)
@@ -365,15 +362,15 @@ class Happy2hub : MainAPI() {
         runCatching {
             var href = url
             if (href.contains("api/index.php")) {
-                href = app.get(url, interceptor = interceptor).document.selectFirst("div.main h4 a")?.attr("href") ?: url
+                href = app.get(url).document.selectFirst("div.main h4 a")?.attr("href") ?: url
             }
-            val doc = app.get(href, interceptor = interceptor).document
+            val doc = app.get(href).document
             val scriptTag = doc.selectFirst("script:containsData(url)")?.data()
                 ?: doc.selectFirst("script:containsData(location)")?.data().orEmpty()
             val urlValue = Regex("var url = '([^']*)'").find(scriptTag)?.groupValues?.getOrNull(1).orEmpty()
             val targetUrl = if (urlValue.isNotEmpty()) urlValue else href
 
-            val document = if (targetUrl != href) app.get(targetUrl, interceptor = interceptor).document else doc
+            val document = if (targetUrl != href) app.get(targetUrl).document else doc
             val size = document.selectFirst("i#size")?.text().orEmpty()
             val labelExtras = if (size.isNotEmpty()) "[$size]" else ""
 
@@ -397,8 +394,8 @@ class Happy2hub : MainAPI() {
 
                     text.contains("BuzzServer", ignoreCase = true) || text.contains("FastDL", ignoreCase = true) -> {
                         runCatching {
-                            val dlink = app.get("$btnLink/download", referer = btnLink, allowRedirects = false, interceptor = interceptor).headers["hx-redirect"]
-                                ?: app.get(btnLink, referer = href, allowRedirects = false, interceptor = interceptor).headers["location"]
+                            val dlink = app.get("$btnLink/download", referer = btnLink, allowRedirects = false).headers["hx-redirect"]
+                                ?: app.get(btnLink, referer = href, allowRedirects = false).headers["location"]
                             val base = btnLink.substringBefore("/download").substringBefore("://") + "://" + btnLink.substringAfter("://").substringBefore("/")
                             val fullStream = if (!dlink.isNullOrBlank()) {
                                 if (dlink.startsWith("http")) dlink else base + dlink

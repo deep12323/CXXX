@@ -3,7 +3,6 @@ package com.Pornobae
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.extractors.StreamWishExtractor
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Pornobae : MainAPI() {
@@ -16,7 +15,6 @@ class Pornobae : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
             "category/brazzers" to "Brazzers",
@@ -44,7 +42,7 @@ class Pornobae : MainAPI() {
         {
             url ="$mainUrl/${request.data}/page/$page"
         }
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val home     = document.select("div.videos-list article").mapNotNull {
              it.toSearchResult() }
 
@@ -71,7 +69,7 @@ class Pornobae : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..5) {
-            val document = app.get("${mainUrl}/search/$query/page/$i", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/search/$query/page/$i").document
 
             val results = document.select("#primary article").mapNotNull { it.toSearchResult() }
 
@@ -88,7 +86,7 @@ class Pornobae : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title       = document.selectFirst("meta[property=og:title]")?.attr("content")
             ?.substringAfter("–") ?:""
@@ -111,7 +109,7 @@ class Pornobae : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         document.select("div.responsive-player").map { res ->
             val href=res.select("iframe").attr("src")
             loadExtractor(href,subtitleCallback, callback)

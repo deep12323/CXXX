@@ -10,7 +10,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlin.random.Random
 import org.jsoup.parser.Parser
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 // ĐỊNH NGHĨA RelatedItem Ở TOP-LEVEL HOẶC BÊN TRONG CLASS NHƯNG NGOÀI HÀM
 private data class RelatedItemParse( // Đổi tên để tránh xung đột nếu có class RelatedItem khác
@@ -30,7 +29,6 @@ class XnxxProvider : MainAPI() {
     override val supportedTypes = setOf(
         TvType.NSFW
     )
-    private val interceptor = CloudflareKiller()
 
     companion object {
         // ... (companion object giữ nguyên) ...
@@ -89,7 +87,7 @@ class XnxxProvider : MainAPI() {
         }
         val videoList = mutableListOf<SearchResponse>()
         try {
-            val document = app.get(sectionUrl, interceptor = interceptor).document 
+            val document = app.get(sectionUrl).document 
             val videoElements = document.select("div.mozaique div.thumb-block")
             // println("TxnhhProvider DEBUG: Found ${videoElements.size} thumb-blocks in fetchSectionVideos for $sectionUrl")
             
@@ -107,7 +105,7 @@ class XnxxProvider : MainAPI() {
         var hasNextMainPage = false 
 
         if (page == 1) { 
-            val document = app.get(mainUrl, interceptor = interceptor).document
+            val document = app.get(mainUrl).document
             val scriptElements = document.select("script:containsData(xv.cats.write_thumb_block_list)")
 
             if (scriptElements.isNotEmpty()) {
@@ -243,7 +241,7 @@ class XnxxProvider : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse? {
         println("TxnhhProvider DEBUG: load() called with URL = $url")
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         
         val rawOgTitle = document.selectFirst("meta[property=og:title]")?.attr("content")
         val rawPageTitle = document.selectFirst(".video-title strong")?.text()

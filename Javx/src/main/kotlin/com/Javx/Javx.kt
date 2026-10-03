@@ -4,7 +4,6 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.extractors.StreamWishExtractor
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import org.jsoup.nodes.Element
 
 class Javx : MainAPI() {
@@ -15,7 +14,6 @@ class Javx : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch = false
     override val vpnStatus = VPNStatus.MightBeNeeded
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "?filter=latest" to "Latest",
@@ -31,7 +29,7 @@ class Javx : MainAPI() {
         } else {
             if (request.data.startsWith("?")) "$mainUrl/page/$page/${request.data}" else "$mainUrl/${request.data}/page/$page/"
         }
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val responseList = document.select("article").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
             HomePageList(request.name, responseList.distinctBy { it.url }, isHorizontalImages = true),
@@ -65,7 +63,7 @@ class Javx : MainAPI() {
         val encoded = query.trim().replace(" ", "+")
 
         for (page in 1..3) {
-            val document = app.get("$mainUrl/page/$page/?s=$encoded", interceptor = interceptor).document
+            val document = app.get("$mainUrl/page/$page/?s=$encoded").document
             val results = document.select("article").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) break
@@ -77,13 +75,13 @@ class Javx : MainAPI() {
 
     override suspend fun search(query: String, page: Int): SearchResponseList {
         val encoded = query.trim().replace(" ", "+")
-        val document = app.get("$mainUrl/page/$page/?s=$encoded", interceptor = interceptor).document
+        val document = app.get("$mainUrl/page/$page/?s=$encoded").document
         val results = document.select("article").mapNotNull { it.toSearchResult() }.distinctBy { it.url }
         return newSearchResponseList(results, results.isNotEmpty())
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - JavX").trim()
         val description = document.selectFirst("meta[property=og:description]")?.attr("content")?.trim()
@@ -114,7 +112,7 @@ class Javx : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val doc = app.get(data, interceptor = interceptor).document
+        val doc = app.get(data).document
 
         // Check tabs
         doc.select("#sourcetabs a, a.btn-server").forEach {

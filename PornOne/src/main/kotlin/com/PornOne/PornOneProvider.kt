@@ -8,7 +8,6 @@ import com.lagradost.cloudstream3.utils.*
 import org.json.JSONObject
 import org.jsoup.nodes.Document
 import java.lang.System
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class PornOneProvider : MainAPI() {
     override var mainUrl              = "https://pornone.com"
@@ -19,8 +18,6 @@ class PornOneProvider : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
             "/" to "Latest Updates",
@@ -49,7 +46,7 @@ class PornOneProvider : MainAPI() {
             "/wife/" to "Wife",
         )
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-            var document = app.get("$mainUrl${request.data}$page", interceptor = interceptor, timeout = 30).document
+            var document = app.get("$mainUrl${request.data}$page", timeout = 30).document
             val responseList  = document.select(".popbop.vidLinkFX").mapNotNull { it.toSearchResult() }
             return newHomePageResponse(HomePageList(request.name, responseList, isHorizontalImages = true),hasNext = true)
 
@@ -74,7 +71,7 @@ class PornOneProvider : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..7) {
-            var document = app.get("$mainUrl/search?q=$query&page=$i", interceptor = interceptor, timeout = 30).document
+            var document = app.get("$mainUrl/search?q=$query&page=$i", timeout = 30).document
 
             //val document = app.get("${mainUrl}/page/$i/?s=$queassry").document
 
@@ -94,7 +91,7 @@ class PornOneProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val script = document.select("script[data-react-helmet=\"true\"]").html()
         val jsonObj = JSONObject(script)
         val title = jsonObj.get("name")
@@ -109,7 +106,7 @@ class PornOneProvider : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val doc = app.get(data, interceptor = interceptor).document
+        val doc = app.get(data).document
         val sources = doc.select("#pornone-video-player source")
         sources.forEach { item->
             val src = item.attr("src")

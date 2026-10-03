@@ -1,7 +1,6 @@
 package com.anhdaden
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import org.jsoup.nodes.Element
@@ -15,7 +14,6 @@ class NetflavProvider : MainAPI() {
     override val supportedTypes = setOf(
         TvType.NSFW,
     )
-    private val interceptor = CloudflareKiller()
     val cookies = mapOf("i18next" to "en")
 
     override val mainPage = mainPageOf(
@@ -27,7 +25,7 @@ class NetflavProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(request.data + page, referer = "$mainUrl/", cookies = cookies, interceptor = interceptor).document
+        val document = app.get(request.data + page, referer = "$mainUrl/", cookies = cookies).document
         val script = document.select("script").findLast { it.data().contains("preview_hp") }?.data() ?: ""
         val home = document.select("div.grid_0_cell").mapNotNull {
             it.toSearchResult(script)
@@ -61,7 +59,7 @@ class NetflavProvider : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/search?type=title&keyword=$query", referer = "$mainUrl/", cookies = cookies, interceptor = interceptor).document
+        val document = app.get("$mainUrl/search?type=title&keyword=$query", referer = "$mainUrl/", cookies = cookies).document
         val script = document.select("script").findLast { it.data().contains("preview_hp") }?.data() ?: ""
 
         return document.select("div.grid_0_cell").map {
@@ -88,7 +86,7 @@ class NetflavProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val request = app.get(url, referer = "$mainUrl/", cookies = cookies, interceptor = interceptor)
+        val request = app.get(url, referer = "$mainUrl/", cookies = cookies)
         val document = request.document
         
         val title = document.select("div.videodetail_2_title")?.text()?.trim().toString()
@@ -97,7 +95,7 @@ class NetflavProvider : MainAPI() {
         val year = document.selectFirst("#video-details > div:nth-child(4) > div:nth-child(2) > div.videodetail_2_field_values")?.text()?.split("-")?.get(0)?.toIntOrNull()
         val actors = document.select("a[href^='/all?actress=']").map { it.text() }
         val tags = document.select("a[href^='/all?genre=']").map { it.text() }
-        val recommendations = app.get("https://netflav5.com/api98/video/getRelatedVideo?videoId=${url.substringAfter("?id=")}", referer = "$mainUrl/", cookies = cookies, interceptor = interceptor)
+        val recommendations = app.get("https://netflav5.com/api98/video/getRelatedVideo?videoId=${url.substringAfter("?id=")}", referer = "$mainUrl/", cookies = cookies)
             .parsedSafe<Response>()?.result?.docs?.mapNotNull { it ->
                 val posterUrl = it.preview_hp
                 newMovieSearchResponse(it.title_en, "${mainUrl}/video?id=${it.videoId}", TvType.NSFW) {
@@ -115,7 +113,7 @@ class NetflavProvider : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, referer = "$mainUrl/", interceptor = interceptor).document
+        val document = app.get(data, referer = "$mainUrl/").document
         val response = document.select("script").find { it.data().contains("eval(function(p,a,c,k,e,d)") }?.data()?.let { getAndUnpack(it) } ?: ""
         listOf("hls4", "hls2").forEach { key ->
             val link = response.substringAfter("\"$key\":\"").substringBefore("\"")

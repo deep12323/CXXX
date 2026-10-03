@@ -7,7 +7,6 @@ import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class JavFreeProvider : MainAPI() {
     private val globalTvType = TvType.NSFW
@@ -18,13 +17,12 @@ class JavFreeProvider : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch = false
     override val vpnStatus = VPNStatus.MightBeNeeded
-    private val interceptor = CloudflareKiller()
 
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val document = app.get(mainUrl, interceptor = interceptor).document
+        val document = app.get(mainUrl).document
         val all = ArrayList<HomePageList>()
 
         document.getElementsByTag("body").select("div#page")
@@ -73,7 +71,7 @@ class JavFreeProvider : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val encodedQuery = query.trim().replace(" ", "+")
         val searchUrl = "$mainUrl/search/movie/$encodedQuery"
-        val document = app.get(searchUrl, interceptor = interceptor).document
+        val document = app.get(searchUrl).document
             .select("div.videos-list article, article[id^=post], article")
 
         return document.mapNotNull {
@@ -101,7 +99,7 @@ class JavFreeProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val doc = app.get(url, interceptor = interceptor).document
+        val doc = app.get(url).document
         val poster = fixUrlNull(doc.select("meta[property=og:image]").firstOrNull()?.attr("content"))
         val title = doc.select("meta[name=title]").firstOrNull()?.attr("content")?.cleanText()
             ?: doc.select("meta[property=og:title]").firstOrNull()?.attr("content")?.cleanText()
@@ -161,7 +159,7 @@ class JavFreeProvider : MainAPI() {
             if (data.contains("player.javfree.sh")) {
                 val id = if (data.contains("#")) data.substringAfter("#") else data.substringAfterLast("/")
                 val linkToGet = "https://player.javfree.sh/stream/$id"
-                val jsonres = app.get(linkToGet, referer = mainUrl, interceptor = interceptor).text
+                val jsonres = app.get(linkToGet, referer = mainUrl).text
                 val referer = "https://player.javfree.sh/embed.html"
 
                 tryParseJson<ResponseJson?>(jsonres)?.let { item ->

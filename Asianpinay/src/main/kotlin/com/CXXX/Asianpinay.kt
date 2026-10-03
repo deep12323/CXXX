@@ -4,7 +4,6 @@ import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class Asianpinay : MainAPI() {
     override var mainUrl              = "https://asianpinay.com"
@@ -14,15 +13,13 @@ class Asianpinay : MainAPI() {
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
 
-    private val interceptor = CloudflareKiller()
-
     override val mainPage = mainPageOf(
         "?filter=latest" to "Latest",
         "category/sexy-movies" to "Full Movies",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/page/$page", interceptor = interceptor).document
+        val document = app.get("$mainUrl/${request.data}/page/$page").document
         val home     = document.select("div.video-block").mapNotNull {
             it.toSearchResult()
         }
@@ -51,7 +48,7 @@ class Asianpinay : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val searchResponse = mutableListOf<SearchResponse>()
         for (i in 1..2) {
-            val document = app.get("${mainUrl}/?s=$query/page/$i", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/?s=$query/page/$i").document
             val results = document.select("div.video-block").mapNotNull { it.toSearchResult() }
             searchResponse.addAll(results)
 
@@ -62,7 +59,7 @@ class Asianpinay : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val rawtitle        = document.selectFirst("section h1")?.text() ?: "Unknown"
         val title           = rawtitle.replaceFirstChar { it.uppercase() }
         val poster          = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -80,11 +77,11 @@ class Asianpinay : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val href=document.selectFirst("meta[itemprop=embedURL]")?.attr("content")
         if (href!=null)
         {
-            val doc= app.get(href, referer = mainUrl, interceptor = interceptor).text
+            val doc= app.get(href, referer = mainUrl).text
             val video_id=Regex("video_id\\s*=\\s*['\"`](\\w+)['\"`];").find(doc)?.groupValues?.get(1).toString()
             val m3u8url=Regex("m3u8_loader_url\\s*=\\s*['\"`]([^'\"`]+)['\"`];").find(doc)?.groupValues?.get(1).toString()
             val regex = Regex("""^(?!.*//file).*?file:\s*["']([^"']*\.vtt)["']""", RegexOption.MULTILINE)

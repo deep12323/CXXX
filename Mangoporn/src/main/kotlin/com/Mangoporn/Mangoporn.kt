@@ -3,7 +3,6 @@ package com.Mangoporn
 //import android.util.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Mangoporn : MainAPI() {
@@ -14,7 +13,6 @@ class Mangoporn : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "genres/porn-movies" to "Latest Release",
@@ -49,7 +47,7 @@ class Mangoporn : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-            val document = app.get("$mainUrl/${request.data}/page/$page", interceptor = interceptor).document
+            val document = app.get("$mainUrl/${request.data}/page/$page").document
             val home = document.select("div.items > article")
                 .mapNotNull { it.toSearchResult() }
             return newHomePageResponse(
@@ -92,7 +90,7 @@ class Mangoporn : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..2) {
-            val document = app.get("$mainUrl/page/$i/?s=$query", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/page/$i/?s=$query").document
 
             val results = document.select("article")
                 .mapNotNull { it.toSearchingResult() }
@@ -109,7 +107,7 @@ class Mangoporn : MainAPI() {
         return searchResponse
     }
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title = document.selectFirst("div.data > h1")?.text().toString()
         val poster = document.selectFirst("div.poster > img")?.attr("data-wpfc-original-src")?.trim().toString()
@@ -132,7 +130,7 @@ class Mangoporn : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         document.select("div#pettabs > ul a").map {
             val link=it.attr("href")
             loadExtractor(link,subtitleCallback, callback)

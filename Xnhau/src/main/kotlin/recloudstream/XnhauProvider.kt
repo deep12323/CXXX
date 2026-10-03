@@ -27,7 +27,8 @@ class XnhauProvider : MainAPI() {
         TvType.NSFW
     )
     private val storageUrl = "https://xnhaustorage.com" // Có thể dùng const val
-    private val interceptor = CloudflareKiller()
+
+    // override val interceptor = CloudflareKiller() // Bỏ comment nếu trang web dùng Cloudflare
 
     // --- Data class để lưu thông tin path ---
     private data class VideoPathInfo(val group: String, val videoId: String)
@@ -108,7 +109,7 @@ class XnhauProvider : MainAPI() {
      private suspend fun checkUrlExists(url: String, referer: String?): Boolean {
         return try {
             // Dùng HEAD hoặc GET với Range để tiết kiệm băng thông
-            val response = app.get(url, referer = referer, headers = mapOf("Range" to "bytes=0-0"), allowRedirects = true, interceptor = interceptor)
+            val response = app.get(url, referer = referer, headers = mapOf("Range" to "bytes=0-0"), allowRedirects = true)
             println("HEAD Check for $url -> Status Code: ${response.code}")
             response.isSuccessful // Kiểm tra mã trạng thái 2xx
         } catch (e: Exception) {
@@ -147,7 +148,7 @@ class XnhauProvider : MainAPI() {
                         } else {
                             fixUrl(url)
                         }
-                        val document = app.get(pageUrl, interceptor = interceptor).document
+                        val document = app.get(pageUrl).document
 
                         val itemsSelector = when (url) {
                             "/" -> "#list_videos_videos_watched_right_now_items .item"
@@ -203,13 +204,13 @@ class XnhauProvider : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse>? {
         val searchUrl = "$mainUrl/search/${query}/"
-        val document = app.get(searchUrl, interceptor = interceptor).document
+        val document = app.get(searchUrl).document
         // Đảm bảo dùng selector đúng
         return document.select("#list_videos_videos_list_search_result_items .item").mapNotNull { it.toSearchResponse() }
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val htmlContent = document.html()
         val flashvarsString = findJsVariableContent(htmlContent, "flashvars")
         val title = extractJsVar(flashvarsString ?: "", "video_title")
@@ -242,7 +243,7 @@ class XnhauProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
 
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val htmlContent = document.html()
 
         // 1. Lấy videoId (ưu tiên pageContext, fallback về URL)

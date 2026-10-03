@@ -6,7 +6,6 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.extractors.StreamTape
 import com.lagradost.cloudstream3.extractors.VidhideExtractor
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class SuperJav : MainAPI() {
     override var mainUrl              = "https://supjav.com"
@@ -15,9 +14,7 @@ class SuperJav : MainAPI() {
     override var lang                 = "en"
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
     private val subtitleCatUrl        = "https://www.subtitlecat.com"
-
 
     override val mainPage = mainPageOf(
         "category/censored-jav" to "Censored Jav",
@@ -30,7 +27,7 @@ class SuperJav : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page <= 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/page/$page/"
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val home = document.select("div.post").mapNotNull {
             it.toSearchResult()
         }
@@ -70,7 +67,7 @@ class SuperJav : MainAPI() {
 
         for (i in 1..3) {
             val url = if (i == 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$i/?s=$encoded"
-            val document = app.get(url, interceptor = interceptor).document
+            val document = app.get(url).document
             val results = document.select("div.post").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) break
@@ -81,7 +78,7 @@ class SuperJav : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title = document.selectFirst("div.archive-title h1, meta[property='og:title']")?.text()?.trim()
             ?: document.title().substringBefore(" - SupJav").trim()
         val poster = fixUrlNull(
@@ -113,7 +110,7 @@ class SuperJav : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val doc = app.get(data, interceptor = interceptor).document
+        val doc = app.get(data).document
 
         doc.select("a.btn-server").amap {
             val rawLink = it.attr("data-link")
@@ -121,7 +118,7 @@ class SuperJav : MainAPI() {
                 runCatching {
                     val id = rawLink.toCharArray().reversed().joinToString("")
                     val fetchurl = "https://lk1.supremejav.com/supjav.php?c=$id"
-                    val sourcefetch = app.get(fetchurl, referer = fetchurl, allowRedirects = false, interceptor = interceptor).headers["location"].orEmpty()
+                    val sourcefetch = app.get(fetchurl, referer = fetchurl, allowRedirects = false).headers["location"].orEmpty()
                     if (sourcefetch.isNotBlank()) {
                         Log.d("Phisher", sourcefetch)
                         loadExtractor(sourcefetch, referer = "$mainUrl/", subtitleCallback, callback)

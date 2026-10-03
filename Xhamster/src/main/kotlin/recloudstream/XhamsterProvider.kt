@@ -5,7 +5,6 @@ package recloudstream
 import android.util.Log // Import Log for debugging
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 // No need to import AppUtils specifically if using AppUtils.parseJson
 import org.jsoup.Jsoup
@@ -124,7 +123,6 @@ class XhamsterProvider: MainAPI() {
     override val hasMainPage = true
     override var lang = "en"
     override val supportedTypes = setOf(TvType.NSFW)
-    private val interceptor = CloudflareKiller()
 
     // Hàm phụ trợ parse JSON (No changes needed here, uses unified InitialsJson)
      private fun getInitialsJson(html: String): InitialsJson? {
@@ -164,7 +162,7 @@ class XhamsterProvider: MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
         if (page > 1) return null
         Log.d(name, "getMainPage started for page $page")
-        val document = try { app.get("$mainUrl/", interceptor = interceptor).document } catch (e: Exception) { Log.e(name, "Failed to fetch main page: ${e.message}"); return null }
+        val document = try { app.get("$mainUrl/").document } catch (e: Exception) { Log.e(name, "Failed to fetch main page: ${e.message}"); return null }
         val initialData = getInitialsJson(document.html())
         var items: List<SearchResponse>? = null // Khai báo biến trước
         var listTitle = "Video Trang Chủ" // Tiêu đề mặc định
@@ -219,7 +217,7 @@ class XhamsterProvider: MainAPI() {
         val searchUrl = "$mainUrl/search/$query"
         Log.d(name, "Search started for query '$query' at URL: $searchUrl")
         val document = try {
-            app.get(searchUrl, interceptor = interceptor).document
+            app.get(searchUrl).document
         } catch (e: Exception) {
             Log.e(name, "Failed to fetch search page: ${e.message}")
             e.printStackTrace()
@@ -268,7 +266,7 @@ class XhamsterProvider: MainAPI() {
     // === HÀM load (REVISED - HTML ONLY FOR RECOMMENDATIONS) ===
     override suspend fun load(url: String): LoadResponse? {
         Log.d(name, "Loading URL: $url")
-        val document = try { app.get(url, interceptor = interceptor).document } catch (e: Exception) { Log.e(name, "Failed to load URL $url: ${e.message}"); return null }
+        val document = try { app.get(url).document } catch (e: Exception) { Log.e(name, "Failed to load URL $url: ${e.message}"); return null }
         val htmlContent = document.html() // Get HTML once
         val initialData = getInitialsJson(htmlContent) // Still parse JSON for other data
 
@@ -337,7 +335,7 @@ class XhamsterProvider: MainAPI() {
     ): Boolean {
         // ... (Code giữ nguyên) ...
          Log.d(name, "LoadLinks started for: $data")
-        val document = try { app.get(data, interceptor = interceptor).document } catch (e: Exception) { Log.e(name, "Failed to get document for loadLinks: ${e.message}"); return false }
+        val document = try { app.get(data).document } catch (e: Exception) { Log.e(name, "Failed to get document for loadLinks: ${e.message}"); return false }
         val initialData = getInitialsJson(document.html()) ?: run { Log.e(name, "Failed to parse JSON for loadLinks."); return false }
 
         var foundLinks = false

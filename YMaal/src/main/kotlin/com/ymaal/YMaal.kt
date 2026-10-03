@@ -9,7 +9,6 @@ import com.google.gson.JsonParser
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addImdbId
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class YMaal : MainAPI() {
     override var mainUrl = "https://ymaal.co"
@@ -19,7 +18,6 @@ class YMaal : MainAPI() {
     override val hasDownloadSupport = true
 
     override val supportedTypes = setOf(TvType.NSFW)
-    private val interceptor = CloudflareKiller()
 
     private fun toResult(post: Element): SearchResponse? {
         val url = post.attr("href").takeIf { it.isNotBlank() } ?: return null
@@ -43,19 +41,19 @@ class YMaal : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page == 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/page/$page/"
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val home = document.select("a.video-card").mapNotNull { toResult(it) }
         return newHomePageResponse(HomePageList(request.name,home,true))
     }
 
     override suspend fun search(query: String,page:Int): SearchResponseList? {
-        val document = app.get("$mainUrl/page/$page/?s=$query", interceptor = interceptor).document
+        val document = app.get("$mainUrl/page/$page/?s=$query").document
         val searchResult:List<SearchResponse> = document.select("a.video-card").mapNotNull { toResult(it) }
         return searchResult.toNewSearchResponseList()
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val doc = app.get(url, interceptor = interceptor).document
+        val doc = app.get(url).document
         var title = doc.selectFirst("h1.video-title")?.text() ?: "$name"
         var description = doc.select("div.description").text().removePrefix("Description")
         var posterUrl = doc.select("meta[property^=og:image]").attr("content")

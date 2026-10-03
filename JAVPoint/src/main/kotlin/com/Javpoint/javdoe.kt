@@ -2,7 +2,6 @@ package com.Javpoint
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Javdoe : MainAPI() {
@@ -14,7 +13,6 @@ class Javdoe : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "recent" to "Latest",
@@ -26,7 +24,7 @@ class Javdoe : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page == 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/$page/"
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val home = document.select("ul.videos > li")
             .mapNotNull { it.toSearchResult() }
 
@@ -63,7 +61,7 @@ class Javdoe : MainAPI() {
         val encoded = query.trim().replace(" ", "+")
 
         for (i in 1..3) {
-            val document = app.get("$mainUrl/search/video/?s=$encoded&page=$i", interceptor = interceptor).document
+            val document = app.get("$mainUrl/search/video/?s=$encoded&page=$i").document
             val results = document.select("ul.videos > li").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) break
@@ -74,7 +72,7 @@ class Javdoe : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - JavDoe").trim()
@@ -105,7 +103,7 @@ class Javdoe : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val sourcelist = mutableListOf<String>()
 
         val onclickValue = document.selectFirst(".button_choice_server")?.attr("onclick")
@@ -116,7 +114,7 @@ class Javdoe : MainAPI() {
             if (!playEmbedContent.isNullOrBlank()) {
                 runCatching {
                     val embedUrl = fixUrl(playEmbedContent)
-                    val sources = app.get(embedUrl, interceptor = interceptor).document
+                    val sources = app.get(embedUrl).document
                     val liElements = sources.select("li.button_choice_server")
                     for (liElement in liElements) {
                         val oc = liElement.attr("onclick")

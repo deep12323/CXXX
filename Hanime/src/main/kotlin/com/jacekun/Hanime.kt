@@ -12,7 +12,6 @@ import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 import java.text.SimpleDateFormat
 import java.util.*
@@ -22,7 +21,7 @@ import kotlin.collections.ArrayList
 
 class Hanime : MainAPI() {
     private val globalTvType = TvType.NSFW
-    private val interceptor = CloudflareKiller()
+    //private val interceptor = CloudflareKiller()
     private var globalHeaders = mapOf<String, String>()
     private val DEV = "DevDebug"
 
@@ -98,7 +97,7 @@ class Hanime : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
 
-        val requestGet = app.get("https://hanime.tv/", interceptor = interceptor)
+        val requestGet = app.get("https://hanime.tv/")
         globalHeaders = requestGet.headers.toMap()
         val data = requestGet.text
         val jsonText = Regex("""window\.__NUXT__=(.*?);</script>""").find(data)?.destructured?.component1()
@@ -167,8 +166,7 @@ class Hanime : MainAPI() {
         val response = app.post(
             url = link,
             json = data,
-            headers = globalHeaders,
-            interceptor = interceptor
+            headers = globalHeaders
         )
         val responseText = response.text
         val titles = ArrayList<String>()
@@ -248,7 +246,7 @@ class Hanime : MainAPI() {
         val title = params[1].second
 
         val uri = "$mainUrl/api/v8/video?id=${id}&"
-        val response = app.get(uri, interceptor = interceptor)
+        val response = app.get(uri)
 
         val data = tryParseJson<HanimeEpisodeData>(response.text)
             ?: throw ErrorLoadingException("Failed to parse episode data")
@@ -288,7 +286,7 @@ class Hanime : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val res = app.get(data, interceptor = interceptor).text
+        val res = app.get(data).text
         val response = tryParseJson<HanimeEpisodeData>(res)
 
         response?.videosManifest?.servers?.forEach { server ->

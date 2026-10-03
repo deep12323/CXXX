@@ -3,7 +3,6 @@ package com.CXXX
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
@@ -16,8 +15,6 @@ class Hqporner : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "${mainUrl}/category/milf" to "Milf",
@@ -35,7 +32,7 @@ class Hqporner : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(request.data, interceptor = interceptor).document
+        val document = app.get(request.data).document
         val home     = document.select("div.box.page-content div.row section").mapNotNull {
             it.toSearchResult()
         }
@@ -66,7 +63,7 @@ class Hqporner : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val searchResponse = mutableListOf<SearchResponse>()
         for (i in 1..2) {
-            val document = app.get("${mainUrl}/?q=$query&p=$i", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/?q=$query&p=$i").document
             val results = document.select("div.box.page-content div.row section").mapNotNull { it.toSearchResult() }
             searchResponse.addAll(results)
             if (results.isEmpty()) break
@@ -76,7 +73,7 @@ class Hqporner : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse? {
         val d = tryParseJson<LoadUrl>(url) ?: return null
-        val document = app.get(d.href, interceptor = interceptor).document
+        val document = app.get(d.href).document
         val capitalizedTitle= document.selectFirst("header > h1")?.text()?.trim().toString()
         val title  = capitalizedTitle.split(" ")
             .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
@@ -89,7 +86,7 @@ class Hqporner : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val doc=document.toString()
         val rawurl = Regex("""url: '/blocks/altplayer\.php\?i=//(.*?)',""").find(doc)?.groupValues?.get(1) ?:""
         val href= "https://$rawurl"

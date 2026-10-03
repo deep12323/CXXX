@@ -21,7 +21,6 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import org.jsoup.nodes.Element
 
 
@@ -32,7 +31,6 @@ class KRX18 : MainAPI() {
     override val hasDownloadSupport = true
     override val vpnStatus = VPNStatus.MightBeNeeded
     override val supportedTypes = setOf(TvType.NSFW)
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "movies" to "Recently added",
@@ -49,7 +47,7 @@ class KRX18 : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/?page/$page", interceptor = interceptor).document
+        val document = app.get("$mainUrl/${request.data}/?page/$page").document
         val home = document.select("#archive-content article,div.items.normal article")
             .map { it.toSearchResult() }
         return newHomePageResponse(
@@ -72,13 +70,13 @@ class KRX18 : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/search/videos?search_query=$query", interceptor = interceptor).document
+        val document = app.get("$mainUrl/search/videos?search_query=$query").document
         val searchResponse = document.select("div.card.border-0").map { it.toSearchResult() }
         return searchResponse
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title = document.selectFirst("div.data h1")?.text() ?: "Unknown"
         val poster =
             document.selectFirst("meta[property=og:image]")?.attr("content")?.trim() ?: "Unknown"
@@ -100,7 +98,7 @@ class KRX18 : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val req = app.get(data, interceptor = interceptor).document
+        val req = app.get(data).document
         req.select("ul#playeroptionsul li").map {
             Triple(
                 it.attr("data-post"),
@@ -118,8 +116,7 @@ class KRX18 : MainAPI() {
                         "type" to type
                     ),
                     referer = mainUrl,
-                    headers = mapOf("X-Requested-With" to "XMLHttpRequest"),
-                    interceptor = interceptor
+                    headers = mapOf("X-Requested-With" to "XMLHttpRequest")
                 ).parsed<ResponseHash>().embed_url
                 loadExtractor(source,subtitleCallback,callback)
                 Log.d("Phisher source",source)

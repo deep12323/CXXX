@@ -2,7 +2,6 @@ package com.megix
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Onlyjerk : MainAPI() {
@@ -14,7 +13,6 @@ class Onlyjerk : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "/videos" to "Latest",
@@ -28,7 +26,7 @@ class Onlyjerk : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl${request.data}/page/$page/", interceptor = interceptor).document
+        val document = app.get("$mainUrl${request.data}/page/$page/").document
         val home     = document.select("div.tdb-block-inner > div.td-cpt-post").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -52,14 +50,14 @@ class Onlyjerk : MainAPI() {
     }
 
     override suspend fun search(query: String, page: Int): SearchResponseList? {
-        val document = app.get("$mainUrl/page/$page/?s=$query", interceptor = interceptor).document
+        val document = app.get("$mainUrl/page/$page/?s=$query").document
         val results = document.select("div.tdb-block-inner > div.td-cpt-post").mapNotNull { it.toSearchResult() }
         val hasNext = if(results.isEmpty()) false else true
         return newSearchResponseList(results, hasNext)
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title       = document.select("meta[property=og:title]").attr("content")
         val poster      = document.select("meta[property='og:image']").attr("content")
@@ -73,7 +71,7 @@ class Onlyjerk : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
 
         document.select(".player-wrap > iframe").amap {
             loadExtractor(

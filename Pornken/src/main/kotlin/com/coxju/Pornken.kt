@@ -3,7 +3,6 @@ package com.coxju
 import android.util.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.getQualityFromName
 import com.lagradost.cloudstream3.utils.newExtractorLink
@@ -19,7 +18,6 @@ class Porn11 : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
             "" to "Home",
@@ -31,7 +29,7 @@ class Porn11 : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/page-$page", interceptor = interceptor).document
+        val document = app.get("$mainUrl/${request.data}/page-$page").document
         val home     = document.select("div.video-preview-screen.video-item.thumb-item.private ").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -58,7 +56,7 @@ class Porn11 : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..5) {
-            val document = app.get("${mainUrl}/page/$i?s=$query", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/page/$i?s=$query").document
 
             val results = document.select("article.post").mapNotNull { it.toSearchResult() }
 
@@ -76,7 +74,7 @@ class Porn11 : MainAPI() {
 
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title       = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
         val poster      = fixUrlNull(document.selectFirst("meta[property=og:image]")?.attr("content").toString())
@@ -89,7 +87,7 @@ class Porn11 : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         println(data)
         val extractedscript =document.selectFirst("script:containsData(moviesiframe)")?.data().toString()
        //Log.d("Test124",extractedscript)
@@ -106,12 +104,11 @@ class Porn11 : MainAPI() {
             headers = mapOf("content-type" to "application/x-www-form-urlencoded"),
             referer = data,
             requestBody = body,
-            interceptor = interceptor
             )
         val srcRegex = Regex("""<iframe[^>]+src=["']([^"']+)["'][^>]*>""")
         val matchResult = srcRegex.find(dataextract.toString())
         val srcAttribute = matchResult?.groups?.get(1)?.value
-        val mainpage=app.get("https://pornken.com$srcAttribute", interceptor = interceptor).document
+        val mainpage=app.get("https://pornken.com$srcAttribute").document
         val source=mainpage.select("video > source").forEach {
             val url =it.attr("src")
             val resolution=it.attr("res")

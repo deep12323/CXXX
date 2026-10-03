@@ -9,7 +9,6 @@ import com.lagradost.cloudstream3.utils.httpsify
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class SxyPrn : MainAPI() {
     override var mainUrl = "https://sxyprn.com"
@@ -18,7 +17,6 @@ class SxyPrn : MainAPI() {
     override val hasDownloadSupport = true
     override val vpnStatus = VPNStatus.MightBeNeeded
     override val supportedTypes = setOf(TvType.NSFW)
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "$mainUrl/new.html?page=" to "New Videos",
@@ -36,12 +34,12 @@ class SxyPrn : MainAPI() {
         var pageStr = ((page - 1) * 30).toString()
 
         val document = if ("page=" in request.data) {
-            app.get(request.data + pageStr, interceptor = interceptor).document
+            app.get(request.data + pageStr).document
         } else if ("/blog/" in request.data) {
             pageStr = ((page - 1) * 20).toString()
-            app.get(request.data.replace(".html", "$pageStr.html"), interceptor = interceptor).document
+            app.get(request.data.replace(".html", "$pageStr.html")).document
         } else {
-            app.get(request.data.replace(".html", ".html/$pageStr"), interceptor = interceptor).document
+            app.get(request.data.replace(".html", ".html/$pageStr")).document
         }
         val home = document.select("div.main_content div.post_el_small").mapNotNull {
                 it.toSearchResult()
@@ -70,8 +68,7 @@ class SxyPrn : MainAPI() {
         val encoded = query.trim().replace(" ", "+")
         for (i in 0 until 10) {
             val document = app.get(
-                "$mainUrl/search/$encoded.html?page=${i * 30}",
-                interceptor = interceptor
+                "$mainUrl/search/$encoded.html?page=${i * 30}"
             ).document
             val results = document.select("div.main_content div.post_el_small").mapNotNull {
                     it.toSearchResult()
@@ -83,7 +80,7 @@ class SxyPrn : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title = document.selectFirst("div.post_text")?.text()?.trim()
             ?: document.selectFirst("meta[property=og:title]")?.attr("content") ?: ""
         val poster = httpsify(document.selectFirst("meta[property=og:image]")?.attr("content") ?: "")
@@ -119,7 +116,7 @@ class SxyPrn : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
 
         // 1) Try external links first (site sometimes has direct extlink buttons)
         val extLinks = document.select("div.post_el_wrap a.extlink")

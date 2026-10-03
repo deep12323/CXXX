@@ -4,10 +4,9 @@ import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import okhttp3.FormBody
-import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class PornhoarderPlugin : MainAPI() {
-    override var mainUrl              = "https://ww8.pornhoarder.org"
+    override var mainUrl              = "https://ww3.pornhoarder.org"
     override var name                 = "Pornhoarder"
     override val hasMainPage          = true
     override var lang                 = "en"
@@ -15,7 +14,6 @@ class PornhoarderPlugin : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     private val ajaxUrl = "$mainUrl/ajax_search.php"
 
@@ -52,14 +50,14 @@ class PornhoarderPlugin : MainAPI() {
         if(request.data == "Latest" || request.data == "Popular")
         {
             val body = getRequestBody("",request.data == "Latest",page)
-            val document = app.post(ajaxUrl, requestBody = body, interceptor = interceptor).document
+            val document = app.post(ajaxUrl, requestBody = body).document
             val responseList  = document.select(".video article").mapNotNull { it.toSearchResult() }
             return newHomePageResponse(HomePageList(request.name, responseList, isHorizontalImages = true),hasNext = true)
 
         }
         else
         {
-            val document = app.get("$mainUrl${request.data}?page=$page", interceptor = interceptor).document
+            val document = app.get("$mainUrl${request.data}?page=$page").document
             val responseList  = document.select(".video article").mapNotNull { it.toSearchResult() }
             return newHomePageResponse(HomePageList(request.name, responseList, isHorizontalImages = true),hasNext = true)
         }
@@ -80,7 +78,7 @@ class PornhoarderPlugin : MainAPI() {
 
         for (i in 1..10) {
             val requestBody = getRequestBody(query,true,i)
-            val document = app.post(ajaxUrl, requestBody = requestBody, interceptor = interceptor).document
+            val document = app.post(ajaxUrl, requestBody = requestBody).document
             //val document = app.get("${mainUrl}/page/$i/?s=$query").document
 
             val results = document.select(".video article").mapNotNull { it.toSearchResult() }
@@ -99,7 +97,7 @@ class PornhoarderPlugin : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString().replace("| PornHoarder.tv","")
         val poster = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -113,7 +111,7 @@ class PornhoarderPlugin : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val doc = app.get(data, interceptor = interceptor).document
+        val doc = app.get(data).document
         val serversList = mutableListOf<String>()
         val currentSrc = doc.select(".video-player iframe").attr("src")
         serversList.add(currentSrc)
@@ -123,7 +121,7 @@ class PornhoarderPlugin : MainAPI() {
             val urls = servers.select("li a")
             urls.forEach { item->
                 val hostUrl = "$mainUrl${item.attr("href")}"
-                val docurl = app.get(hostUrl, interceptor = interceptor).document
+                val docurl = app.get(hostUrl).document
                 val srcUrl = docurl.select(".video-player iframe").attr("src")
                 serversList.add(srcUrl)
             }
@@ -132,7 +130,7 @@ class PornhoarderPlugin : MainAPI() {
             val requestBody =FormBody.Builder()
                 .addEncoded("play", "")
                 .build()
-            val doc1 = app.post(item, requestBody = requestBody, interceptor = interceptor).document
+            val doc1 = app.post(item,requestBody = requestBody).document
             val videoHosterUrl = doc1.select("iframe").attr("src")
             loadExtractor(videoHosterUrl,subtitleCallback,callback)
         }

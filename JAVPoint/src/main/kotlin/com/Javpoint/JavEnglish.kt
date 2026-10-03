@@ -2,7 +2,6 @@ package com.Javpoint
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class JavEnglish : MainAPI() {
@@ -12,7 +11,6 @@ class JavEnglish : MainAPI() {
     override var lang = "en"
     override val supportedTypes = setOf(TvType.NSFW)
     override val vpnStatus = VPNStatus.MightBeNeeded
-    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "?filter=latest" to "Latest",
@@ -27,7 +25,7 @@ class JavEnglish : MainAPI() {
         } else {
             "$mainUrl/page/$page/${request.data}"
         }
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val home = document.select("div.videos-list > article, article")
             .mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
@@ -64,7 +62,7 @@ class JavEnglish : MainAPI() {
         val encoded = query.trim().replace(" ", "+")
 
         for (i in 1..3) {
-            val document = app.get("$mainUrl/page/$i/?s=$encoded", interceptor = interceptor).document
+            val document = app.get("$mainUrl/page/$i/?s=$encoded").document
             val results = document.select("div.videos-list > article, article")
                 .mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
@@ -76,7 +74,7 @@ class JavEnglish : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - JavEnglish").trim()
@@ -107,7 +105,7 @@ class JavEnglish : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val iframes = document.select("iframe[src]")
 
         for (iframe in iframes) {

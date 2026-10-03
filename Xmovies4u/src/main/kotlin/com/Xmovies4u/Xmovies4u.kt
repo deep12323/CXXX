@@ -2,7 +2,6 @@ package com.megix
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.extractors.BigwarpIO
 import com.lagradost.cloudstream3.extractors.DoodLaExtractor
@@ -18,7 +17,6 @@ class Xmovies4u : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "" to "Latest",
@@ -36,7 +34,7 @@ class Xmovies4u : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl${request.data}/page/$page", interceptor = interceptor).document
+        val document = app.get("$mainUrl${request.data}/page/$page").document
         val home     = document.select("article.post").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -60,14 +58,14 @@ class Xmovies4u : MainAPI() {
     }
 
     override suspend fun search(query: String, page: Int): SearchResponseList? {
-        val document = app.get("$mainUrl/page/$page/?s=$query", interceptor = interceptor).document
+        val document = app.get("$mainUrl/page/$page/?s=$query").document
         val results = document.select("article.post").mapNotNull { it.toSearchResult() }
         val hasNext = if(results.isEmpty()) false else true
         return newSearchResponseList(results, hasNext)
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
         val title       = document.select("meta[property=og:title]").attr("content")
         val poster      = document.select("meta[property='og:image']").attr("content")
         val description = document.select("div.entry-content > p > span > span").text()
@@ -79,7 +77,7 @@ class Xmovies4u : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         document.select("span > span > a").amap {
             val text = it.text()
             val link = it.attr("href")

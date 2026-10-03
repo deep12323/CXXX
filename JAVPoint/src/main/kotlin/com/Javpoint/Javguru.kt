@@ -5,17 +5,15 @@ import com.lagradost.api.Log
 //import android.util.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Javguru : MainAPI() {
-    override var mainUrl              = "https://jav.guru"
+    override var mainUrl              = "https://jav.guru/"
     override var name                 = "Javguru"
     override val hasMainPage          = true
     override var lang                 = "en"
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
-    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "category/english-subbed" to "English Subbed",
@@ -28,7 +26,7 @@ class Javguru : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/page/$page", interceptor = interceptor).document
+        val document = app.get("$mainUrl/${request.data}/page/$page").document
         val home = document.select("#main > div")
             .mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
@@ -54,7 +52,7 @@ class Javguru : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..3) {
-            val document = app.get("$mainUrl/page/$i/?s=$query", interceptor = interceptor).document
+            val document = app.get("${mainUrl}/page/$i/?s=$query").document
             val results = document.select("#main > div").mapNotNull { it.toSearchResult() }
             if (!searchResponse.containsAll(results)) {
                 searchResponse.addAll(results)
@@ -67,7 +65,7 @@ class Javguru : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, interceptor = interceptor).document
+        val document = app.get(url).document
 
         val title= document.selectFirst("div.posts > h1")?.text().toString()
         val poster = document.selectFirst("meta[property=og:image]")?.attr("content")?.trim().toString()
@@ -79,7 +77,7 @@ class Javguru : MainAPI() {
     }
 
      override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data, interceptor = interceptor).document
+        val document = app.get(data).document
         val script=document.select("script:containsData(iframe_url)").html()
         val IFRAME_B64_REGEX = Regex(""""iframe_url":"([^"]+)"""")
          val iframeUrls = IFRAME_B64_REGEX.findAll(script)
@@ -88,11 +86,11 @@ class Javguru : MainAPI() {
              .toList()
          iframeUrls.forEach {
              Log.d("Phisher",it)
-             val iframedoc=app.get(it, referer = it, interceptor = interceptor).document
+             val iframedoc=app.get(it, referer = it).document
              val olid=iframedoc.toString().substringAfter("var OLID = '").substringBefore("'")
              val newreq=iframedoc.toString().substringAfter("iframe").substringAfter("src=\"").substringBefore("'+OLID")
              val reverseid= olid.edoceD()
-             val location= app.get("$newreq$reverseid", referer = it, allowRedirects = false, interceptor = interceptor)
+             val location= app.get("$newreq$reverseid", referer = it, allowRedirects = false)
              val link=location.headers["location"].toString()
              if (link.contains(".m3u"))
              {
