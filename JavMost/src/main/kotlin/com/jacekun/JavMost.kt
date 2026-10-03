@@ -8,6 +8,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import org.json.JSONObject
+import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class JavMost : MainAPI() {
     private val globaltvType = TvType.NSFW

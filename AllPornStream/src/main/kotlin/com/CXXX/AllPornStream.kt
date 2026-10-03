@@ -12,6 +12,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class AllPornStream : MainAPI() {
     override var mainUrl = "https://allpornstream.com"
@@ -20,6 +21,7 @@ class AllPornStream : MainAPI() {
     override val hasDownloadSupport = true
     override val vpnStatus = VPNStatus.MightBeNeeded
     override val supportedTypes = setOf(TvType.NSFW)
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "?studio=ElegantAngel" to "Elegant Angel",
@@ -42,7 +44,7 @@ class AllPornStream : MainAPI() {
     ): HomePageResponse {
         // request.data already starts with '?', so append directly without extra slash
         val url = "$mainUrl/${request.data}&page=$page"
-        val doc = app.get(url).document
+        val doc = app.get(url, interceptor = interceptor).document
 
         val json = doc.select("script[type=application/ld+json]")
             .firstOrNull { it.data().contains("ItemList") }
@@ -92,7 +94,7 @@ class AllPornStream : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val searchResponse = mutableListOf<SearchResponse>()
         for (page in 1..3) {
-            val doc = app.get("$mainUrl/?search=${query.encodeUri()}&page=$page").document
+            val doc = app.get("$mainUrl/?search=${query.encodeUri()}&page=$page", interceptor = interceptor).document
             val json = doc.select("script[type=application/ld+json]")
                 .firstOrNull { it.data().contains("ItemList") }
                 ?.data() ?: break
@@ -106,7 +108,7 @@ class AllPornStream : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val doc = app.get(url).document
+        val doc = app.get(url, interceptor = interceptor).document
 
         // Extract title from og:title or page title
         val title = doc.selectFirst("meta[property=og:title]")?.attr("content")

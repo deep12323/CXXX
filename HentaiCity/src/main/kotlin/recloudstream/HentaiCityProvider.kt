@@ -8,6 +8,7 @@ import org.jsoup.nodes.Element           // Cho Element của Jsoup
 import com.lagradost.cloudstream3.utils.ExtractorLink // Link trích xuất
 import com.lagradost.cloudstream3.utils.ExtractorLinkType // Loại link
 import org.jsoup.Jsoup                   // Cần cho Jsoup.parse trong load
+import com.lagradost.cloudstream3.network.CloudflareKiller
 
 // Định nghĩa lớp Plugin chính
 class HentaiCityProvider : MainAPI() {
@@ -18,6 +19,7 @@ class HentaiCityProvider : MainAPI() {
     override val hasMainPage = true
     override var hasChromecastSupport = true
     override val supportedTypes = setOf(TvType.NSFW)
+    private val interceptor = CloudflareKiller()
 
     // --- Helper Function để Parse Item (Video) ---
      private fun parseItem(element: Element): MovieSearchResponse? {
@@ -55,7 +57,7 @@ class HentaiCityProvider : MainAPI() {
 
     // --- Hàm lấy dữ liệu Trang Chủ (Sửa lỗi constructor HomePageResponse) ---
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(mainUrl).document
+        val document = app.get(mainUrl, interceptor = interceptor).document
         val homePageList = mutableListOf<HomePageList>()
 
         // Hàm cục bộ để thêm section

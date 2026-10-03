@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.utils.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLDecoder
+import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class HStream : MainAPI() {
     override var mainUrl              = "https://hstream.moe"

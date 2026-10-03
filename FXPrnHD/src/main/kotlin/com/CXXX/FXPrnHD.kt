@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import org.jsoup.nodes.Element
 
 class Fxprnhd : MainAPI() {
@@ -15,6 +16,7 @@ class Fxprnhd : MainAPI() {
     override val hasDownloadSupport = true
     override val vpnStatus = VPNStatus.MightBeNeeded
     override val supportedTypes = setOf(TvType.NSFW)
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         mainUrl to "Newest",
@@ -29,7 +31,7 @@ class Fxprnhd : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val document = app.get("${request.data}/page/$page").document
+        val document = app.get("${request.data}/page/$page", interceptor = interceptor).document
         val home = document.select("article").mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
             list = HomePageList(
@@ -61,7 +63,7 @@ class Fxprnhd : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val searchResponse = mutableListOf<SearchResponse>()
         for (i in 1..10) {
-            val document = app.get("$mainUrl/?s=$query&page=$i", headers = mapOf("X-Requested-With" to "XMLHttpRequest")).document
+            val document = app.get("$mainUrl/?s=$query&page=$i", headers = mapOf("X-Requested-With" to "XMLHttpRequest"), interceptor = interceptor).document
             val results = document.select("div.videos-list > article").mapNotNull { it.toSearchResult() }
             searchResponse.addAll(results)
             if (results.isEmpty()) break
@@ -70,7 +72,7 @@ class Fxprnhd : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("div.title-views > h1")?.text()?.trim().toString()
         val poster =
@@ -100,10 +102,10 @@ class Fxprnhd : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
 
-        val iframe = app.get(data).document.select("div.responsive-player iframe").attr("src")
+        val iframe = app.get(data, interceptor = interceptor).document.select("div.responsive-player iframe").attr("src")
 
         if (iframe.startsWith(mainUrl)) {
-            val video = app.get(iframe, referer = data).document.select("video source").attr("src")
+            val video = app.get(iframe, referer = data, interceptor = interceptor).document.select("video source").attr("src")
             callback.invoke(
                 newExtractorLink(
                     source = this.name,
