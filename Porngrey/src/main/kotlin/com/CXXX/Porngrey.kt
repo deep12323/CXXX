@@ -2,6 +2,7 @@ package com.CXXX
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 
@@ -15,6 +16,7 @@ class Porngrey : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes = setOf(TvType.NSFW)
     override val vpnStatus = VPNStatus.MightBeNeeded
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "/videos_5/" to "Recent Videos",
@@ -33,7 +35,7 @@ class Porngrey : MainAPI() {
         } else {
             "$mainUrl${request.data}$page/"
         }
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val home = document.select("a.cards__item, a[href*='/video/']").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -65,7 +67,7 @@ class Porngrey : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
         for (page in 1..3) {
             val url = "$mainUrl/search/?q=${query.encodeUri()}&sort=watch&page=$page"
-            val document = app.get(url).document
+            val document = app.get(url, interceptor = interceptor).document
             val results = document.select("a.cards__item, a[href*='/video/']").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) break
@@ -75,7 +77,7 @@ class Porngrey : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")
             ?: document.title().substringBefore(" #").trim()
 
@@ -108,7 +110,7 @@ class Porngrey : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val html = document.html()
 
         // Extract direct video stream URLs from KT player

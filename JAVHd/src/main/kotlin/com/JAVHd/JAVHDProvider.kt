@@ -23,6 +23,7 @@ import com.lagradost.cloudstream3.runAllAsync
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -35,6 +36,7 @@ class JAVHDProvider : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
     private val subtitleCatUrl        = "https://www.subtitlecat.com"
 
     override val mainPage = mainPageOf(
@@ -51,12 +53,12 @@ class JAVHDProvider : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val document = if (page == 1) {
-            app.get("$mainUrl${request.data}").document
+            app.get("$mainUrl${request.data}", interceptor = interceptor).document
         } else {
             if (request.name == "Jav Subbed" || request.name == "Uncensored" || request.name == "Reduced Mosaic" || request.name == "Amateur") {
-                app.get("$mainUrl${request.data}recent/$page").document
+                app.get("$mainUrl${request.data}recent/$page", interceptor = interceptor).document
             } else {
-                app.get("$mainUrl${request.data}$page").document
+                app.get("$mainUrl${request.data}$page", interceptor = interceptor).document
             }
         }
         val responseList = document.select("div.video").mapNotNull { it.toSearchResult() }
@@ -88,7 +90,7 @@ class JAVHDProvider : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
         val encodedQuery = query.trim().replace(" ", "+")
         for (page in 1..3) {
-            val document = app.get("$mainUrl/search/video/?s=$encodedQuery&page=$page").document
+            val document = app.get("$mainUrl/search/video/?s=$encodedQuery&page=$page", interceptor = interceptor).document
             val results = document.select("div.video").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) break
@@ -99,13 +101,13 @@ class JAVHDProvider : MainAPI() {
 
     override suspend fun search(query: String, page: Int): SearchResponseList {
         val encodedQuery = query.trim().replace(" ", "+")
-        val document = app.get("$mainUrl/search/video/?s=$encodedQuery&page=$page").document
+        val document = app.get("$mainUrl/search/video/?s=$encodedQuery&page=$page", interceptor = interceptor).document
         val results = document.select("div.video").mapNotNull { it.toSearchResult() }.distinctBy { it.url }
         return newSearchResponseList(results, results.isNotEmpty())
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - JAV").trim()
@@ -142,7 +144,7 @@ class JAVHDProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val doc = app.get(data).document
+        val doc = app.get(data, interceptor = interceptor).document
         runAllAsync(
             {
                 val episodeList = doc.select(".button_style .button_choice_server")

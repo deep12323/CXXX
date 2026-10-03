@@ -1,6 +1,7 @@
 package recloudstream // Hoặc package name bạn muốn
 
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -17,6 +18,7 @@ class XvideosProvider : MainAPI() {
     override val supportedTypes = setOf(
         TvType.NSFW
     )
+    private val interceptor = CloudflareKiller()
 
     private fun Element.toSearchResponse(): SearchResponse? {
         val titleElement = this.selectFirst("p.title a")
@@ -67,7 +69,7 @@ class XvideosProvider : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
         val pageNumber = if (page > 1) "/new/${page - 1}" else ""
-        val document = app.get("$mainUrl$pageNumber").document
+        val document = app.get("$mainUrl$pageNumber", interceptor = interceptor).document
 
         val items = document.select("div.mozaique div.thumb-block").mapNotNull {
             it.toSearchResponse()
@@ -79,7 +81,7 @@ class XvideosProvider : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse>? {
-        val document = app.get("$mainUrl/?k=$query").document
+        val document = app.get("$mainUrl/?k=$query", interceptor = interceptor).document
 
         return document.select("div.mozaique div.thumb-block").mapNotNull {
             it.toSearchResponse()
@@ -87,7 +89,7 @@ class XvideosProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("h2.page-title")?.ownText()?.trim()
             ?: document.selectFirst("meta[property=og:title]")?.attr("content")
@@ -215,7 +217,7 @@ class XvideosProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val scripts = document.select("script") // Lấy tất cả các thẻ script
         var linksFound = false
         val quality=document.select("div.video-hd-mark").text()

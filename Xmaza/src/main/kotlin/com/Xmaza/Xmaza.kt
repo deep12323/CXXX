@@ -2,10 +2,11 @@ package com.Xmaza
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Xmaza : MainAPI() {
-    override var mainUrl              = "https://xmaza.net"
+    override var mainUrl              = "https://xmaza.adult"
     override var name                 = "Xmaza"
     override val hasMainPage          = true
     override var lang                 = "hi"
@@ -14,6 +15,8 @@ class Xmaza : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "" to "Home",
@@ -27,7 +30,7 @@ class Xmaza : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/page/$page").document
+        val document = app.get("$mainUrl/${request.data}/page/$page", interceptor = interceptor).document
         val home     = document.select("div.videos a").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -51,13 +54,13 @@ class Xmaza : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("${mainUrl}?s=$query").document
+        val document = app.get("${mainUrl}?s=$query", interceptor = interceptor).document
         val results = document.select("div.videos a").mapNotNull { it.toSearchResult() }
         return results
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title       = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
         val poster      = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -71,7 +74,7 @@ class Xmaza : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val source=document.selectFirst("#my-video source")?.attr("src") ?:""
         callback.invoke(
             newExtractorLink(

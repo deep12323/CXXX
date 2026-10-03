@@ -2,6 +2,7 @@ package com.megix
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class TrendyPorn : MainAPI() {
@@ -13,6 +14,7 @@ class TrendyPorn : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "$mainUrl/" to "Home",
@@ -26,7 +28,7 @@ class TrendyPorn : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(request.data + "page" + page + ".html").document
+        val document = app.get(request.data + "page" + page + ".html", interceptor = interceptor).document
         val home = document.select("#wrapper > div.container > div:nth-child(4) > div div.well-sm").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -49,14 +51,14 @@ class TrendyPorn : MainAPI() {
     }
 
     override suspend fun search(query: String, page: Int): SearchResponseList? {
-        val document = app.get("${mainUrl}/search/${query}/page${page}.html").document
+        val document = app.get("${mainUrl}/search/${query}/page${page}.html", interceptor = interceptor).document
         val results = document.select("#wrapper > div.container > div:nth-child(4) > div div.well-sm").mapNotNull { it.toSearchResult() }
         val hasNext = if(results.isEmpty()) false else true
         return newSearchResponseList(results, hasNext)
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val title = document.select("meta[property=og:title]").attr("content")
         val posterUrl = fixUrlNull(document.selectFirst("meta[property=og:image]")?.attr("content")) ?:""
 
@@ -72,7 +74,7 @@ class TrendyPorn : MainAPI() {
         callback: (ExtractorLink) -> Unit
         ): Boolean {
 
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val link = document.select("source").attr("src")
 
         callback.invoke(

@@ -4,6 +4,7 @@ package com.Chatrubate
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.mvvm.logError
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class ChatrubateProvider : MainAPI() {
@@ -15,6 +16,7 @@ class ChatrubateProvider : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
             "/api/ts/roomlist/room-list/?limit=90" to "Featured",
@@ -36,7 +38,7 @@ class ChatrubateProvider : MainAPI() {
             
             val url = "$mainUrl${request.data}&offset=$offset"
             val response = try {
-                app.get(url).parsedSafe<Response>()
+                app.get(url, interceptor = interceptor).parsedSafe<Response>()
             } catch (e: Exception) {
                 logError(Exception("Error fetching from $url: ${e.message}"))
                 null
@@ -68,7 +70,7 @@ class ChatrubateProvider : MainAPI() {
         for (i in 0..3) {
             val url = "$mainUrl/api/ts/roomlist/room-list/?hashtags=$query&limit=90&offset=${i*90}"
             val response = try {
-                app.get(url).parsedSafe<Response>()
+                app.get(url, interceptor = interceptor).parsedSafe<Response>()
             } catch (e: Exception) {
                 logError(Exception("Error searching: ${e.message}"))
                 null
@@ -99,7 +101,7 @@ class ChatrubateProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim() ?: "Unknown"
         val poster = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -118,7 +120,7 @@ class ChatrubateProvider : MainAPI() {
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
         return try {
-            val doc = app.get(data).document
+            val doc = app.get(data, interceptor = interceptor).document
             val script = doc.select("script").find { item-> item.html().contains("window.initialRoomDossier") }
             
             if (script == null) {

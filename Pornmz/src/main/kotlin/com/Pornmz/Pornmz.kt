@@ -2,6 +2,7 @@ package com.Pornmz
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Pornmz : MainAPI() {
@@ -13,6 +14,7 @@ class Pornmz : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "" to "Home",
@@ -28,7 +30,7 @@ class Pornmz : MainAPI() {
         } else {
             "$mainUrl${request.data}/page/$page/"
         }
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val home = document.select(".videos-list a").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -58,7 +60,7 @@ class Pornmz : MainAPI() {
         val encoded = query.trim().replace(" ", "+")
 
         for (i in 1..5) {
-            val document = app.get("$mainUrl/page/$i/?s=$encoded").document
+            val document = app.get("$mainUrl/page/$i/?s=$encoded", interceptor = interceptor).document
             val results = document.select(".videos-list a").mapNotNull { it.toSearchResult() }
 
             if (results.isEmpty()) break
@@ -69,7 +71,7 @@ class Pornmz : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title       = document.selectFirst("meta[property=og:title]")?.attr("content") ?: ""
         val poster      = document.selectFirst("meta[property='og:image']")?.attr("content") ?: ""
@@ -87,7 +89,7 @@ class Pornmz : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val docText  = document.toString()
 
         // 1) Direct JS variable extraction

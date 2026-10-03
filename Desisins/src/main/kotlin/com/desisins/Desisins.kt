@@ -1,5 +1,6 @@
 package com.desisins
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Element
@@ -16,6 +17,8 @@ class Desisins : MainAPI() { // all providers must be an instance of MainAPI
         TvType.NSFW
     )
     
+    private val interceptor = CloudflareKiller()
+
     private suspend fun getData(url: String,i: Int,id:Int): List<SearchResponse> {
        
         val response = app.post(
@@ -25,7 +28,8 @@ class Desisins : MainAPI() { // all providers must be an instance of MainAPI
 			    "cat_id" to "$id",
 			    "current_posts" to "$i",
 			    "type" to ""
-            )
+            ),
+            interceptor = interceptor
         ).text
 
         val document=  Jsoup.parse(response)
@@ -78,7 +82,7 @@ class Desisins : MainAPI() { // all providers must be an instance of MainAPI
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/?s=$query").document
+        val document = app.get("$mainUrl/?s=$query", interceptor = interceptor).document
 
         return document.select("div.home_post_cont").mapNotNull {
             toResult(it)
@@ -86,7 +90,7 @@ class Desisins : MainAPI() { // all providers must be an instance of MainAPI
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("h1")?.text() ?:""
         val desc = document.selectFirst("div.g1-meta")?.text() ?:""
@@ -103,7 +107,7 @@ class Desisins : MainAPI() { // all providers must be an instance of MainAPI
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val doc = app.get(data).document
+        val doc = app.get(data, interceptor = interceptor).document
         val docid = doc.select("a[onclick^=itm]").firstOrNull {
             it.text().contains("LuLu", ignoreCase = true)
         }?.attr("onclick")?.let {

@@ -3,6 +3,7 @@ package com.megix
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Porn4fans : MainAPI() {
@@ -14,6 +15,7 @@ class Porn4fans : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "$mainUrl/onlyfans-videos/%d/" to "Latest",
@@ -25,7 +27,7 @@ class Porn4fans : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(request.data.format(page)).document
+        val document = app.get(request.data.format(page), interceptor = interceptor).document
         val home     = document.select("div.item").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -53,14 +55,14 @@ class Porn4fans : MainAPI() {
     }
 
     override suspend fun search(query: String, page: Int): SearchResponseList? {
-        val document = app.get("$mainUrl/search/$query/?mode=async&function=get_block&block_id=custom_list_videos_videos_list_search_result&q=$query&category_ids&sort_by&from_videos=$page&from_albums=$page").document
+        val document = app.get("$mainUrl/search/$query/?mode=async&function=get_block&block_id=custom_list_videos_videos_list_search_result&q=$query&category_ids&sort_by&from_videos=$page&from_albums=$page", interceptor = interceptor).document
         val results = document.select("div.item").mapNotNull { it.toSearchResult() }
         val hasNext = if(results.isEmpty()) false else true
         return newSearchResponseList(results, hasNext)
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val jsonString = document.selectFirst("script[type=application/ld+json]")?.data().toString()
         val jsonObject = parseJson<Response>(jsonString)
 

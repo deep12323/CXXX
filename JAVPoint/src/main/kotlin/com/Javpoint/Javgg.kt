@@ -2,6 +2,7 @@ package com.Javpoint
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Javgg : MainAPI() {
@@ -13,6 +14,7 @@ class Javgg : MainAPI() {
     override val hasDownloadSupport = true
     override val supportedTypes = setOf(TvType.NSFW)
     override val vpnStatus = VPNStatus.MightBeNeeded
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "trending" to "Trending",
@@ -24,7 +26,7 @@ class Javgg : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = "$mainUrl/${request.data}/page/$page"
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val home = document.select("div.items > article")
             .mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
@@ -76,7 +78,7 @@ class Javgg : MainAPI() {
         val encoded = query.trim().replace(" ", "+")
 
         for (i in 1..3) {
-            val document = app.get("$mainUrl/jav/page/$i?s=$encoded").document
+            val document = app.get("$mainUrl/jav/page/$i?s=$encoded", interceptor = interceptor).document
             val results = document.select("article").mapNotNull { it.toSearchingResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) break
@@ -87,7 +89,7 @@ class Javgg : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - JavGG").trim()
@@ -118,7 +120,7 @@ class Javgg : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val iframes = document.select("div.pframe iframe, iframe[src]")
 
         for (iframe in iframes) {
@@ -127,7 +129,7 @@ class Javgg : MainAPI() {
 
             runCatching {
                 if ("javggvideo.xyz" in src) {
-                    val scriptData = app.get(src).document.selectFirst("script:containsData(urlPlay)")?.data()
+                    val scriptData = app.get(src, interceptor = interceptor).document.selectFirst("script:containsData(urlPlay)")?.data()
                     val playUrl = scriptData?.let { Regex("""urlPlay\s*=\s*'(.*?)'""").find(it)?.groupValues?.getOrNull(1) }
                     if (!playUrl.isNullOrBlank()) {
                         loadExtractor(playUrl, "$mainUrl/", subtitleCallback, callback)

@@ -3,6 +3,7 @@ package com.CXXX
 //import android.util.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 
@@ -14,6 +15,8 @@ class FreePornVideos : MainAPI() {
     override val hasQuickSearch       = false
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "most-popular/week" to "Most Popular",
@@ -29,7 +32,7 @@ class FreePornVideos : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/${page+1}/").document
+        val document = app.get("$mainUrl/${request.data}/${page+1}/", interceptor = interceptor).document
         val home     = document.select("#list_videos_common_videos_list_items > div.item").mapNotNull {
             it.toSearchResult()
         }
@@ -67,7 +70,7 @@ class FreePornVideos : MainAPI() {
         for (i in 1..5) {
             val searchquery=query.createSlug() ?:""
             val document = app.get(
-                "${mainUrl}/search/$searchquery/$i")
+                "${mainUrl}/search/$searchquery/$i", interceptor = interceptor)
             .document
             val results = document.select("#custom_list_videos_videos_list_search_result_items > div.item").mapNotNull { it.toSearchResult() }
             searchResponse.addAll(results)
@@ -79,7 +82,7 @@ class FreePornVideos : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val full_title      = document.selectFirst("div.headline > h1")?.text()?.trim().toString()
         val last_index      = full_title.lastIndexOf(" - ")
@@ -127,10 +130,10 @@ class FreePornVideos : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         document.select("video source").forEach { res ->
             val srcUrl = res.attr("src")
-            val response = app.get(srcUrl, allowRedirects = false)
+            val response = app.get(srcUrl, allowRedirects = false, interceptor = interceptor)
             val finalUrl = response.headers["location"] ?: srcUrl
             callback(
                 newExtractorLink(

@@ -3,6 +3,7 @@ package com.Rowdycado
 import android.util.Log
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.mvvm.logError
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
@@ -15,6 +16,8 @@ class AnimeIdHentai : MainAPI() {
     override val supportedTypes = setOf(
         TvType.NSFW
     )
+
+    private val interceptor = CloudflareKiller()
 
     override val mainPage =
         mainPageOf(
@@ -35,7 +38,7 @@ class AnimeIdHentai : MainAPI() {
     ):
             HomePageResponse? {
         var list = mutableListOf<AnimeSearchResponse>()
-        val res = app.get("$mainUrl/${request.data}/page/$page").document
+        val res = app.get("$mainUrl/${request.data}/page/$page", interceptor = interceptor).document
         res.select("article.anime.poster.por").mapNotNull { article ->
             val name = article.selectFirst("header > div.ttl")?.text() ?: ""
             val poster = article.selectFirst("img")?.attr("src")
@@ -60,6 +63,7 @@ class AnimeIdHentai : MainAPI() {
             "$mainUrl/?s=${query}"
         return app.get(
             url,
+            interceptor = interceptor
         ).document.select("article.anime.poster.por").mapNotNull { article ->
             val name = article.selectFirst("header > div.ttl")?.text() ?: ""
             val poster = article.selectFirst("img")?.attr("src")
@@ -73,7 +77,7 @@ class AnimeIdHentai : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val result = app.get(url).document
+        val result = app.get(url, interceptor = interceptor).document
         val background =
             result.selectFirst("div.backdrop")?.attr("style")?.substringAfter("url('")
                 ?.replace("')", "")
@@ -96,7 +100,7 @@ class AnimeIdHentai : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val res = app.get(data).document
+        val res = app.get(data, interceptor = interceptor).document
         val iframe = res.selectFirst("div.embed > iframe")?.attr("src") ?: ""
         val playerurl = extractplayer(iframe) ?: ""
         val sourceurl = extractsource(playerurl) ?:""
@@ -122,7 +126,7 @@ class AnimeIdHentai : MainAPI() {
     }
 
     suspend fun extractplayer(url: String): String? {
-        val iframes = app.get(url).document
+        val iframes = app.get(url, interceptor = interceptor).document
         val iframeres = iframes.selectFirst("div.servers li")?.attr("data-id") ?: ""
         Log.d("HATE", iframeres)
 
@@ -131,7 +135,7 @@ class AnimeIdHentai : MainAPI() {
     }
 
     suspend fun extractsource(url: String): String? {
-        val iframe = app.get("https://nhplayer.com/$url").document
+        val iframe = app.get("https://nhplayer.com/$url", interceptor = interceptor).document
         val iframeres = iframe.select("script:containsData(sources)").toString()
             .substringAfter("file: \"").substringBefore("\",")
         Log.d("Pain", iframeres)
@@ -141,7 +145,7 @@ class AnimeIdHentai : MainAPI() {
     }
 
     suspend fun extractsubtitles(url: String): String? {
-        val iframe = app.get("https://nhplayer.com/$url").document
+        val iframe = app.get("https://nhplayer.com/$url", interceptor = interceptor).document
         val iframeres = iframe.select("script:containsData(sources)").toString()
         val pattern = "\"file\":.\"(.*)\",".toRegex()
         val matchResult = pattern.find(iframeres)

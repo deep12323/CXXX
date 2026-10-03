@@ -3,6 +3,7 @@ package com.jacekun
 import android.annotation.SuppressLint
 import android.util.Log
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.getQualityFromName
 import com.lagradost.cloudstream3.mvvm.logError
@@ -31,12 +32,14 @@ class Hahomoe : MainAPI() {
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.NSFW)
 
+    private val interceptor = CloudflareKiller()
+
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
         val items = ArrayList<HomePageList>()
-        val soup = app.get(mainUrl).document
+        val soup = app.get(mainUrl, interceptor = interceptor).document
         for (section in soup.select("#content > section")) {
             try {
                 if (section.attr("id") == "toplist-tabs") {
@@ -151,7 +154,8 @@ class Hahomoe : MainAPI() {
             app.get(
                 url,
                 params = mapOf("q" to query),
-                cookies = mapOf("loop-view" to "thumb")
+                cookies = mapOf("loop-view" to "thumb"),
+                interceptor = interceptor
             )
         var document = Jsoup.parse(response.text)
         val returnValue = parseSearchPage(document)
@@ -159,7 +163,7 @@ class Hahomoe : MainAPI() {
         while (document.select("""a.page-link[rel="next"]""").isEmpty()) {
             val link = document.select("""a.page-link[rel="next"]""")
             if (link.isNotEmpty()) {
-                response = app.get(link[0].attr("href"), cookies = mapOf("loop-view" to "thumb"))
+                response = app.get(link[0].attr("href"), cookies = mapOf("loop-view" to "thumb"), interceptor = interceptor)
                 document = Jsoup.parse(response.text)
                 returnValue.addAll(parseSearchPage(document))
             } else {
@@ -171,7 +175,7 @@ class Hahomoe : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url, cookies = mapOf("loop-view" to "thumb")).document
+        val document = app.get(url, cookies = mapOf("loop-view" to "thumb"), interceptor = interceptor).document
 
         val englishTitle =
             document.selectFirst("span.value > span[title=\"English\"]")
@@ -234,13 +238,14 @@ class Hahomoe : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val soup = app.get(data).document
+        val soup = app.get(data, interceptor = interceptor).document
 
         for (source in soup.select("""[aria-labelledby="mirror-dropdown"] > li > a.dropdown-item""")) {
             val release = source.text().replace("/", "").trim()
             val sourceSoup = app.get(
                 "$mainUrl/embed?v=${source.attr("href").split("v=")[1].split("&")[0]}",
-                headers=mapOf("Referer" to data)
+                headers=mapOf("Referer" to data),
+                interceptor = interceptor
             ).document
 
             for (quality in sourceSoup.select("video#player > source")) {

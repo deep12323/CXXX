@@ -2,6 +2,7 @@ package com.Javpoint
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class Javangel : MainAPI() {
@@ -11,6 +12,7 @@ class Javangel : MainAPI() {
     override var lang                 = "en"
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "tag/uncen-leaked" to "Uncen Leaked",
@@ -22,7 +24,7 @@ class Javangel : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page == 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/page/$page/"
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val home = document.select("div.tdb_module_loop > div, div.td-module-thumb, div.td_module_wrap")
             .mapNotNull { it.toSearchResult() }
         return newHomePageResponse(
@@ -57,7 +59,7 @@ class Javangel : MainAPI() {
 
         for (i in 1..3) {
             val url = if (i == 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$i/?s=$encoded"
-            val document = app.get(url).document
+            val document = app.get(url, interceptor = interceptor).document
             val results = document.select("div.td-module-thumb, div.tdb_module_loop > div, div.td_module_wrap")
                 .mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
@@ -69,7 +71,7 @@ class Javangel : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
             ?: document.title().substringBefore(" - Jav-Angel").trim()
@@ -100,7 +102,7 @@ class Javangel : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val iframes = document.select("iframe[src]")
 
         for (iframe in iframes) {

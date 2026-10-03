@@ -2,6 +2,7 @@ package com.megix
 
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 
 class YesPornPlease : MainAPI() {
@@ -13,6 +14,7 @@ class YesPornPlease : MainAPI() {
     override val hasDownloadSupport   = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "${mainUrl}" to "Home",
@@ -22,7 +24,7 @@ class YesPornPlease : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("${request.data}/page/${page}/").document
+        val document = app.get("${request.data}/page/${page}/", interceptor = interceptor).document
         val home = document.select("div.post-preview-styling").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -51,7 +53,7 @@ class YesPornPlease : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..5) {
-            val document = app.get("${mainUrl}/page/${i}/?s=${query}").document
+            val document = app.get("${mainUrl}/page/${i}/?s=${query}", interceptor = interceptor).document
 
             val results = document.select("div.post-preview-styling").mapNotNull { it.toSearchResult() }
 
@@ -64,7 +66,7 @@ class YesPornPlease : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val title = document.selectFirst("meta[property=og:title]")?.attr("content") ?:""
         val posterUrl = document.selectFirst("meta[property=og:image]")?.attr("content") ?:""
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
@@ -79,9 +81,9 @@ class YesPornPlease : MainAPI() {
         callback: (ExtractorLink) -> Unit
         ): Boolean {
 
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
         val iframe = document.select("#post > div.wp-video > div > iframe").attr("data-litespeed-src")
-        val source = app.get(iframe).document.select("video a").attr("href")
+        val source = app.get(iframe, interceptor = interceptor).document.select("video a").attr("href")
         callback.invoke(
             newExtractorLink(
                 source = this.name,

@@ -4,6 +4,7 @@ package com.xprimehub
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.utils.*
 import kotlinx.coroutines.runBlocking
 import org.jsoup.nodes.Element
@@ -12,13 +13,15 @@ import java.text.Normalizer
 
 class XPrimeHub : MainAPI() {
     override var mainUrl: String = runBlocking {
-        XPrimeHubProvider.getDomains()?.xprimehub?.takeIf { it.isNotBlank() } ?: "https://xprimehub.skin"
+        XPrimeHubProvider.getDomains()?.xprimehub?.takeIf { it.isNotBlank() } ?: "https://xprimehub.pics"
     }
     override var name                 = "XPrimeHub"
     override val hasMainPage          = true
     override var lang                 = "hi"
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+
+    private val interceptor = CloudflareKiller()
 
     override val mainPage = mainPageOf(
         "" to "Home",
@@ -49,7 +52,7 @@ class XPrimeHub : MainAPI() {
             if (page <= 1) "$mainUrl/$path/" else "$mainUrl/$path/page/$page/"
         }
 
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val home = document.select("div.movies-grid a, .elementor-loop-container .e-loop-item, div.movies-grid > div")
             .mapNotNull { it.toSearchResult() }
             .distinctBy { it.url }
@@ -90,7 +93,7 @@ class XPrimeHub : MainAPI() {
 
         // 1. Try search.php API first
         val apiResults = runCatching {
-            val response = app.get("$mainUrl/search.php?q=$encoded&page=$page").parsedSafe<Search>()
+            val response = app.get("$mainUrl/search.php?q=$encoded&page=$page", interceptor = interceptor).parsedSafe<Search>()
             response?.hits?.mapNotNull { hit ->
                 val doc = hit.document
                 val href = fixUrlNull(doc.permalink) ?: return@mapNotNull null
@@ -107,7 +110,7 @@ class XPrimeHub : MainAPI() {
 
         // 2. Fallback to standard WordPress search
         val searchUrl = if (page <= 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$page/?s=$encoded"
-        val document = app.get(searchUrl).document
+        val document = app.get(searchUrl, interceptor = interceptor).document
         val htmlResults = document.select("div.movies-grid a, .elementor-loop-container .e-loop-item, div.result-item")
             .mapNotNull { it.toSearchResult() }
             .distinctBy { it.url }
@@ -116,7 +119,7 @@ class XPrimeHub : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title = (document.selectFirst("meta[property='og:title']")?.attr("content")
             ?: document.selectFirst("head title")?.text() ?: "No Title")
@@ -250,7 +253,7 @@ class XPrimeHub : MainAPI() {
 
         // Intermediate landing page: fetch and extract buttons/links
         runCatching {
-            val doc = app.get(link, timeout = 15L, allowRedirects = true).document
+            val doc = app.get(link, timeout = 15L, allowRedirects = true, interceptor = interceptor).document
             val extractedUrls = doc.select("button.btn, a.btn, a.button, h2 a, div.card-body a")
                 .filterNot { el ->
                     val text = el.text()
@@ -282,7 +285,7 @@ class XPrimeHub : MainAPI() {
 
 class HubCloud : ExtractorApi() {
     override val name: String = "HubCloud"
-    override val mainUrl: String = "https://hubcloud.one"
+    override val mainUrl: String = "https://hubcloud.ist"
     override val requiresReferer = false
 
     override suspend fun getUrl(
@@ -312,8 +315,9 @@ class HubCloudClub : ExtractorApi() {
 
 class VCloud : ExtractorApi() {
     override val name: String = "V-Cloud"
-    override val mainUrl: String = "https://vcloud.zip"
+    override val mainUrl: String = "https://vcloud.fit"
     override val requiresReferer = false
+    private val interceptor = CloudflareKiller()
 
     override suspend fun getUrl(
         url: String,
@@ -325,16 +329,16 @@ class VCloud : ExtractorApi() {
 
         if (href.contains("api/index.php")) {
             href = runCatching {
-                app.get(url).document.selectFirst("div.main h4 a")?.attr("href")
+                app.get(url, interceptor = interceptor).document.selectFirst("div.main h4 a")?.attr("href")
             }.getOrNull() ?: return
         }
 
-        val doc = runCatching { app.get(href).document }.getOrNull() ?: return
+        val doc = runCatching { app.get(href, interceptor = interceptor).document }.getOrNull() ?: return
         val scriptTag = doc.selectFirst("script:containsData(url)")?.data() ?: ""
         val urlValue = Regex("var url = '([^']*)'").find(scriptTag)?.groupValues?.getOrNull(1).orEmpty()
         val targetUrl = if (urlValue.isNotEmpty()) urlValue else href
 
-        val document = if (targetUrl != href) (runCatching { app.get(targetUrl).document }.getOrNull() ?: doc) else doc
+        val document = if (targetUrl != href) (runCatching { app.get(targetUrl, interceptor = interceptor).document }.getOrNull() ?: doc) else doc
         val size = document.selectFirst("i#size")?.text().orEmpty()
         val header = document.selectFirst("div.card-header")?.text().orEmpty()
 
@@ -373,8 +377,8 @@ class VCloud : ExtractorApi() {
 
                 text.contains("BuzzServer") || text.contains("FastDL", ignoreCase = true) -> {
                     val dlink = runCatching {
-                        app.get("$link/download", referer = link, allowRedirects = false).headers["hx-redirect"]
-                            ?: app.get(link, referer = href, allowRedirects = false).headers["location"]
+                        app.get("$link/download", referer = link, allowRedirects = false, interceptor = interceptor).headers["hx-redirect"]
+                            ?: app.get(link, referer = href, allowRedirects = false, interceptor = interceptor).headers["location"]
                     }.getOrNull() ?: ""
                     val baseUrl = getBaseUrl(link)
                     if (dlink.isNotEmpty()) {
