@@ -20,13 +20,14 @@ class JavMost : MainAPI() {
     override val hasMainPage = true
     override val hasQuickSearch = false
     override val vpnStatus = VPNStatus.MightBeNeeded
+    private val interceptor = CloudflareKiller()
 
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
         val url = if (page <= 1) "$mainUrl/" else "$mainUrl/page/$page/"
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val all = ArrayList<HomePageList>()
 
         val cards = document.select("div#content-update div.card, div.card").mapNotNull { card ->
@@ -65,7 +66,7 @@ class JavMost : MainAPI() {
 
         for (page in 1..3) {
             val url = if (page == 1) "$mainUrl/search/$encoded/" else "$mainUrl/search/$encoded/page/$page/"
-            val document = app.get(url).document
+            val document = app.get(url, interceptor = interceptor).document
             val results = document.select("div#content-update div.card, div.card").mapNotNull { card ->
                 val linkA = card.selectFirst("center > a, div.card-block > a, a") ?: return@mapNotNull null
                 val href = fixUrlNull(linkA.attr("href")) ?: return@mapNotNull null
@@ -97,7 +98,7 @@ class JavMost : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
         val html = document.html()
 
         val poster = fixUrlNull(
@@ -147,7 +148,9 @@ class JavMost : MainAPI() {
                         "Referer" to url,
                         "X-Requested-With" to "XMLHttpRequest"
                     ),
+                    interceptor = interceptor,
                     data = mapOf(
+
                         "group" to y2,
                         "part" to "1",
                         "code" to y4,

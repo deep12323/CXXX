@@ -3,9 +3,10 @@ package com.coxju
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import com.lagradost.cloudstream3.network.CloudflareKiller
 
 class ixiporn : MainAPI() {
-    override var mainUrl              = "https://ixiporn.org"
+    override var mainUrl              = "https://ixiporn.live"
     override var name                 = "ixiporn"
     override val hasMainPage          = true
     override var lang                 = "hi"
@@ -14,6 +15,8 @@ class ixiporn : MainAPI() {
     override val hasChromecastSupport = true
     override val supportedTypes       = setOf(TvType.NSFW)
     override val vpnStatus            = VPNStatus.MightBeNeeded
+    private val interceptor           = CloudflareKiller()
+
 
     override val mainPage = mainPageOf(
             "${mainUrl}/?filter=latest/page/" to "Latest Release",
@@ -29,7 +32,7 @@ class ixiporn : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get(request.data + page).document
+        val document = app.get(request.data + page, interceptor = interceptor).document
         val home     = document.select("div.col-12.col-md-4.col-lg-3.col-xl-3 > div.video-block").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
@@ -56,7 +59,7 @@ class ixiporn : MainAPI() {
         val searchResponse = mutableListOf<SearchResponse>()
 
         for (i in 1..10) {
-            val document = app.get("${mainUrl}/page/$i?s=$query").document
+            val document = app.get("${mainUrl}/page/$i?s=$query", interceptor = interceptor).document
 
             val results = document.select("div.col-12.col-md-4.col-lg-3.col-xl-3 > div.video-block").mapNotNull { it.toSearchResult() }
 
@@ -73,7 +76,7 @@ class ixiporn : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = app.get(url, interceptor = interceptor).document
 
         val title       = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
         val poster      = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
@@ -87,7 +90,7 @@ class ixiporn : MainAPI() {
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
-        val document = app.get(data).document
+        val document = app.get(data, interceptor = interceptor).document
 
         document.select("div.video-player").map { res ->
             callback.invoke(
