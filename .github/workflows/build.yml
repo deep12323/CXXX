@@ -17,6 +17,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -50,6 +52,17 @@ jobs:
           ./gradlew make makePluginsJson
           cp **/build/*.cs3 $GITHUB_WORKSPACE/builds
           cp build/plugins.json $GITHUB_WORKSPACE/builds
+          cat <<EOF > "$GITHUB_WORKSPACE/builds/CXXX.json"
+{
+    "name": "CXXX",
+    "description": "CXXX Repository",
+    "manifestVersion": 1,
+    "pluginLists": [
+      "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/builds/plugins.json"
+    ]
+}
+EOF
+          cp "$GITHUB_WORKSPACE/builds/CXXX.json" "$GITHUB_WORKSPACE/builds/repo.json"
 
       - name: Push builds
         run: |
@@ -59,3 +72,4 @@ jobs:
           git add .
           git commit --amend -m "Build $GITHUB_SHA" || exit 0   # do not error if nothing to commit
           git push --force
+
