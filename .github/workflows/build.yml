@@ -57,7 +57,7 @@ jobs:
           echo '  "description": "CXXX Repository",' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  "manifestVersion": 1,' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  "pluginLists": [' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
-          echo "    \"https://raw.githubusercontent.com/\$GITHUB_REPOSITORY/builds/plugins.json\"" >> "$GITHUB_WORKSPACE/builds/CXXX.json"
+          echo "    \"https://raw.githubusercontent.com/$GITHUB_REPOSITORY/builds/plugins.json\"" >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  ]' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '}' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           cp "$GITHUB_WORKSPACE/builds/CXXX.json" "$GITHUB_WORKSPACE/builds/repo.json"
