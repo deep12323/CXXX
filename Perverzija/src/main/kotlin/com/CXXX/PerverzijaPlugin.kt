@@ -7,9 +7,13 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -58,6 +62,7 @@ class PerverzijaPlugin : Plugin() {
         val currentSelected = Perverzija.getSelectedCatalogues(ctx).toMutableSet()
         val allItems = Perverzija.allCatalogues
         val checkBoxMap = mutableMapOf<String, CheckBox>()
+        val categoryHeaderMap = mutableMapOf<String, TextView>()
 
         val rootLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -72,7 +77,7 @@ class PerverzijaPlugin : Plugin() {
         // --- 1. HEADER ---
         val headerLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, 0, 0, dp(ctx, 10))
+            setPadding(0, 0, 0, dp(ctx, 8))
         }
 
         val titleView = TextView(ctx).apply {
@@ -83,10 +88,10 @@ class PerverzijaPlugin : Plugin() {
         }
 
         val subtitleView = TextView(ctx).apply {
-            text = "Select catalogues to load. Fewer rows = faster home loading & no timeouts."
+            text = "Choose which rows appear on your Home page. Fewer rows = faster load & no Cloudflare blocks."
             textSize = 12f
             setTextColor(Color.parseColor("#94A3B8"))
-            setPadding(0, dp(ctx, 2), 0, dp(ctx, 6))
+            setPadding(0, dp(ctx, 2), 0, dp(ctx, 4))
         }
 
         val counterView = TextView(ctx).apply {
@@ -105,10 +110,26 @@ class PerverzijaPlugin : Plugin() {
         headerLayout.addView(counterView)
         rootLayout.addView(headerLayout)
 
-        // --- 2. QUICK ACTION BUTTONS ---
+        // --- 2. SEARCH / FILTER BOX ---
+        val searchBox = EditText(ctx).apply {
+            hint = "🔍 Search ${allItems.size} catalogues..."
+            setHintTextColor(Color.parseColor("#64748B"))
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = roundedDrawable(ctx, Color.parseColor("#0B0F19"), radiusDp = 8, strokeColor = Color.parseColor("#334155"), strokeWidthDp = 1)
+            setPadding(dp(ctx, 12), dp(ctx, 8), dp(ctx, 12), dp(ctx, 8))
+            isSingleLine = true
+            isFocusable = true
+            val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            params.setMargins(0, 0, 0, dp(ctx, 8))
+            layoutParams = params
+        }
+        rootLayout.addView(searchBox)
+
+        // --- 3. QUICK ACTION BUTTONS ---
         val actionsLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 0, 0, dp(ctx, 10))
+            setPadding(0, 0, 0, dp(ctx, 8))
         }
 
         fun createPillButton(text: String, onClick: () -> Unit): TextView {
@@ -136,7 +157,7 @@ class PerverzijaPlugin : Plugin() {
             updateCounter()
         }
 
-        val selectAllBtn = createPillButton("Select All (48)") {
+        val selectAllBtn = createPillButton("Select All (${allItems.size})") {
             currentSelected.clear()
             allItems.forEach { currentSelected.add(it.name) }
             checkBoxMap.forEach { (_, cb) ->
@@ -159,9 +180,9 @@ class PerverzijaPlugin : Plugin() {
         actionsLayout.addView(clearBtn)
         rootLayout.addView(actionsLayout)
 
-        // --- 3. SCROLLABLE CATALOGUE CHECKBOXES ---
+        // --- 4. SCROLLABLE CATALOGUE CHECKBOXES ---
         val displayMetrics = ctx.resources.displayMetrics
-        val maxScrollHeight = (displayMetrics.heightPixels * 0.50).toInt()
+        val maxScrollHeight = (displayMetrics.heightPixels * 0.48).toInt()
 
         val scrollView = ScrollView(ctx).apply {
             isFillViewport = true
@@ -192,7 +213,7 @@ class PerverzijaPlugin : Plugin() {
             if (itemsInCat.isNotEmpty()) {
                 val catHeader = TextView(ctx).apply {
                     val label = when (cat) {
-                        "Essential" -> "⚡ ESSENTIAL (RECOMMENDED FOR SPEED)"
+                        "Essential" -> "⚡ ESSENTIAL (${itemsInCat.size} - RECOMMENDED FOR SPEED)"
                         "Studios" -> "🎬 STUDIOS (${itemsInCat.size})"
                         "Tags" -> "🏷️ TAGS & CATEGORIES (${itemsInCat.size})"
                         else -> cat.uppercase()
@@ -203,6 +224,7 @@ class PerverzijaPlugin : Plugin() {
                     setTextColor(Color.parseColor("#38BDF8"))
                     setPadding(dp(ctx, 4), dp(ctx, 10), dp(ctx, 4), dp(ctx, 4))
                 }
+                categoryHeaderMap[cat] = catHeader
                 listLayout.addView(catHeader)
 
                 itemsInCat.forEach { item ->
@@ -230,9 +252,30 @@ class PerverzijaPlugin : Plugin() {
             }
         }
 
+        // Live search listener
+        searchBox.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val q = s?.toString()?.trim()?.lowercase() ?: ""
+                allItems.forEach { item ->
+                    val cb = checkBoxMap[item.name] ?: return@forEach
+                    val matches = q.isEmpty() || item.name.lowercase().contains(q)
+                    cb.visibility = if (matches) View.VISIBLE else View.GONE
+                }
+                // Hide header if no matching items in that category
+                categories.forEach { cat ->
+                    val header = categoryHeaderMap[cat] ?: return@forEach
+                    val itemsInCat = allItems.filter { it.category == cat }
+                    val hasVisible = itemsInCat.any { (checkBoxMap[it.name]?.visibility ?: View.GONE) == View.VISIBLE }
+                    header.visibility = if (hasVisible) View.VISIBLE else View.GONE
+                }
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
         rootLayout.addView(scrollView)
 
-        // --- 4. BOTTOM ACTION BUTTONS ---
+        // --- 5. BOTTOM ACTION BUTTONS ---
         val bottomLayout = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
