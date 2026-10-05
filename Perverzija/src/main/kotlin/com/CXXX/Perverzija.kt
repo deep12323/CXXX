@@ -1,9 +1,11 @@
 package com.CXXX
 
+import android.content.Context
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
@@ -22,6 +24,12 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import kotlinx.coroutines.delay
 import org.jsoup.nodes.Element
 
+data class CatalogueItem(
+    val name: String,
+    val path: String,
+    val category: String
+)
+
 class Perverzija : MainAPI() {
     override var name = "Perverzija"
     override var mainUrl = "https://tube.perverzija.com"
@@ -32,56 +40,108 @@ class Perverzija : MainAPI() {
 
     private val cfInterceptor = CloudflareKiller()
 
-    override val mainPage = mainPageOf(
-        "$mainUrl/page/%d/" to "Home",
-        "$mainUrl/featured-scenes/page/%d/?orderby=date" to "Featured",
-        "$mainUrl/studio/page/%d/?orderby=view" to "Most Popular",
-        "$mainUrl/tag/4k-quality/page/%d/" to "4K Quality",
-        "$mainUrl/tag/subtitles/page/%d/" to "Subtitled",
-        "$mainUrl/studio/onlyfans/page/%d/" to "Onlyfans",
-        "$mainUrl/studio/vxn/page/%d/" to "Vxn",
-        "$mainUrl/studio/vxn/blacked/page/%d/" to "Blacked",
-        "$mainUrl/studio/vxn/blacked/blackedraw/page/%d/" to "Blacked Raw",
-        "$mainUrl/studio/vxn/tushy/page/%d/" to "Tushy",
-        "$mainUrl/studio/vxn/vixen/page/%d/" to "Vixen",
-        "$mainUrl/studio/vxn/deeper/page/%d/" to "Deeper",
-        "$mainUrl/studio/brazzers/page/%d/" to "Brazzers",
-        "$mainUrl/studio/brazzers/brazzersexxtra/page/%d/" to "Brazzers Exxtra",
-        "$mainUrl/studio/private/page/%d/" to "Private",
-        "$mainUrl/studio/nubiles/page/%d/" to "Nubiles",
-        "$mainUrl/studio/realitykings/page/%d/" to "Reality Kings",
-        "$mainUrl/studio/bangbros/page/%d/" to "Bangbros",
-        "$mainUrl/studio/naughtyamerica/page/%d/" to "Naughty America",
-        "$mainUrl/studio/teamskeet/page/%d/" to "TeamSkeet",
-        "$mainUrl/studio/teamskeet/dadcrush/page/%d/" to "Dad Crush",
-        "$mainUrl/studio/mofos/page/%d/" to "Mofos",
-        "$mainUrl/studio/fakehub/page/%d/" to "FakeHub",
-        "$mainUrl/studio/fakehub/faketaxi/page/%d/" to "Fake Taxi",
-        "$mainUrl/studio/fakehub/publicagent/page/%d/" to "Public Agent",
-        "$mainUrl/studio/mylf/page/%d/" to "Mylf",
-        "$mainUrl/studio/adulttime/page/%d/" to "AdultTime",
-        "$mainUrl/studio/dogfart/page/%d/" to "Dogfart",
-        "$mainUrl/studio/digitalplayground/page/%d/" to "Digital Playground",
-        "$mainUrl/studio/manyvids/page/%d/" to "ManyVids",
-        "$mainUrl/studio/pornpros/page/%d/" to "PornPros",
-        "$mainUrl/studio/sexmex/page/%d/" to "SexMex",
-        "$mainUrl/studio/vip4k/page/%d/" to "VIP4K",
-        "$mainUrl/studio/legalporno/page/%d/" to "LegalPorno",
-        "$mainUrl/studio/spizoo/page/%d/" to "Spizoo",
-        "$mainUrl/studio/kink/page/%d/" to "Kink",
-        "$mainUrl/tag/milf/page/%d/" to "MILF",
-        "$mainUrl/tag/teen/page/%d/" to "Teen",
-        "$mainUrl/tag/anal/page/%d/" to "Anal",
-        "$mainUrl/tag/blowjob/page/%d/" to "Blowjob",
-        "$mainUrl/tag/big-tits/page/%d/" to "Big Tits",
-        "$mainUrl/tag/big-cock/page/%d/" to "Big Cock",
-        "$mainUrl/tag/creampie/page/%d/" to "Creampie",
-        "$mainUrl/tag/interracial/page/%d/" to "Interracial",
-        "$mainUrl/tag/lesbian/page/%d/" to "Lesbian",
-        "$mainUrl/tag/pov/page/%d/" to "POV",
-        "$mainUrl/tag/threesome/page/%d/" to "Threesome",
-        "$mainUrl/tag/family-taboo/page/%d/" to "Family Taboo",
-    )
+    companion object {
+        var pluginContext: Context? = null
+        const val PREFS_NAME = "perverzija_settings"
+        const val KEY_SELECTED_CATALOGUES = "selected_catalogues"
+
+        val defaultSelectedCatalogues = setOf(
+            "Home",
+            "Featured",
+            "Most Popular",
+            "4K Quality",
+            "Subtitled"
+        )
+
+        val allCatalogues = listOf(
+            // Essential (5)
+            CatalogueItem("Home", "/page/%d/", "Essential"),
+            CatalogueItem("Featured", "/featured-scenes/page/%d/?orderby=date", "Essential"),
+            CatalogueItem("Most Popular", "/studio/page/%d/?orderby=view", "Essential"),
+            CatalogueItem("4K Quality", "/tag/4k-quality/page/%d/", "Essential"),
+            CatalogueItem("Subtitled", "/tag/subtitles/page/%d/", "Essential"),
+
+            // Studios (31)
+            CatalogueItem("Onlyfans", "/studio/onlyfans/page/%d/", "Studios"),
+            CatalogueItem("Vxn", "/studio/vxn/page/%d/", "Studios"),
+            CatalogueItem("Blacked", "/studio/vxn/blacked/page/%d/", "Studios"),
+            CatalogueItem("Blacked Raw", "/studio/vxn/blacked/blackedraw/page/%d/", "Studios"),
+            CatalogueItem("Tushy", "/studio/vxn/tushy/page/%d/", "Studios"),
+            CatalogueItem("Vixen", "/studio/vxn/vixen/page/%d/", "Studios"),
+            CatalogueItem("Deeper", "/studio/vxn/deeper/page/%d/", "Studios"),
+            CatalogueItem("Brazzers", "/studio/brazzers/page/%d/", "Studios"),
+            CatalogueItem("Brazzers Exxtra", "/studio/brazzers/brazzersexxtra/page/%d/", "Studios"),
+            CatalogueItem("Private", "/studio/private/page/%d/", "Studios"),
+            CatalogueItem("Nubiles", "/studio/nubiles/page/%d/", "Studios"),
+            CatalogueItem("Reality Kings", "/studio/realitykings/page/%d/", "Studios"),
+            CatalogueItem("Bangbros", "/studio/bangbros/page/%d/", "Studios"),
+            CatalogueItem("Naughty America", "/studio/naughtyamerica/page/%d/", "Studios"),
+            CatalogueItem("TeamSkeet", "/studio/teamskeet/page/%d/", "Studios"),
+            CatalogueItem("Dad Crush", "/studio/teamskeet/dadcrush/page/%d/", "Studios"),
+            CatalogueItem("Mofos", "/studio/mofos/page/%d/", "Studios"),
+            CatalogueItem("FakeHub", "/studio/fakehub/page/%d/", "Studios"),
+            CatalogueItem("Fake Taxi", "/studio/fakehub/faketaxi/page/%d/", "Studios"),
+            CatalogueItem("Public Agent", "/studio/fakehub/publicagent/page/%d/", "Studios"),
+            CatalogueItem("Mylf", "/studio/mylf/page/%d/", "Studios"),
+            CatalogueItem("AdultTime", "/studio/adulttime/page/%d/", "Studios"),
+            CatalogueItem("Dogfart", "/studio/dogfart/page/%d/", "Studios"),
+            CatalogueItem("Digital Playground", "/studio/digitalplayground/page/%d/", "Studios"),
+            CatalogueItem("ManyVids", "/studio/manyvids/page/%d/", "Studios"),
+            CatalogueItem("PornPros", "/studio/pornpros/page/%d/", "Studios"),
+            CatalogueItem("SexMex", "/studio/sexmex/page/%d/", "Studios"),
+            CatalogueItem("VIP4K", "/studio/vip4k/page/%d/", "Studios"),
+            CatalogueItem("LegalPorno", "/studio/legalporno/page/%d/", "Studios"),
+            CatalogueItem("Spizoo", "/studio/spizoo/page/%d/", "Studios"),
+            CatalogueItem("Kink", "/studio/kink/page/%d/", "Studios"),
+
+            // Tags (12)
+            CatalogueItem("MILF", "/tag/milf/page/%d/", "Tags"),
+            CatalogueItem("Teen", "/tag/teen/page/%d/", "Tags"),
+            CatalogueItem("Anal", "/tag/anal/page/%d/", "Tags"),
+            CatalogueItem("Blowjob", "/tag/blowjob/page/%d/", "Tags"),
+            CatalogueItem("Big Tits", "/tag/big-tits/page/%d/", "Tags"),
+            CatalogueItem("Big Cock", "/tag/big-cock/page/%d/", "Tags"),
+            CatalogueItem("Creampie", "/tag/creampie/page/%d/", "Tags"),
+            CatalogueItem("Interracial", "/tag/interracial/page/%d/", "Tags"),
+            CatalogueItem("Lesbian", "/tag/lesbian/page/%d/", "Tags"),
+            CatalogueItem("POV", "/tag/pov/page/%d/", "Tags"),
+            CatalogueItem("Threesome", "/tag/threesome/page/%d/", "Tags"),
+            CatalogueItem("Family Taboo", "/tag/family-taboo/page/%d/", "Tags")
+        )
+
+        fun getSelectedCatalogues(ctx: Context? = pluginContext): Set<String> {
+            val context = ctx ?: pluginContext ?: return defaultSelectedCatalogues
+            return try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.getStringSet(KEY_SELECTED_CATALOGUES, null)?.toSet() ?: defaultSelectedCatalogues
+            } catch (e: Exception) {
+                defaultSelectedCatalogues
+            }
+        }
+
+        fun setSelectedCatalogues(ctx: Context, set: Set<String>) {
+            try {
+                val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putStringSet(KEY_SELECTED_CATALOGUES, HashSet(set)).apply()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    override val mainPage: List<MainPageData>
+        get() {
+            val selected = getSelectedCatalogues(pluginContext)
+            val filtered = allCatalogues.filter { selected.contains(it.name) }
+            val active = if (filtered.isEmpty()) {
+                allCatalogues.take(1)
+            } else {
+                filtered
+            }
+            return mainPageOf(
+                *active.map { "$mainUrl${it.path}" to it.name }.toTypedArray()
+            )
+        }
 
     override suspend fun getMainPage(
         page: Int,
