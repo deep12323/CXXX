@@ -1,5 +1,5 @@
 // use an integer for version numbers
-version = 9
+version = 10
 
 
 cloudstream {
@@ -22,7 +22,7 @@ cloudstream {
     // https://recloudstream.github.io/cloudstream/html/app/com.lagradost.cloudstream3/-tv-type/index.html
     tvTypes = listOf("NSFW")
 
-    iconUrl = "https://www.google.com/s2/favicons?domain=javfree.sh&sz=%size%"
+    iconUrl = "https://www.google.com/s2/favicons?domain=javfree.me&sz=%size%"
 
     language = "en"
 }

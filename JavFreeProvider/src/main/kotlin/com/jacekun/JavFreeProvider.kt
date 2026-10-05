@@ -11,7 +11,7 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 class JavFreeProvider : MainAPI() {
     private val globalTvType = TvType.NSFW
     override var name = "JavFree"
-    override var mainUrl = "https://javfree.sh"
+    override var mainUrl = "https://javfree.me"
     override val supportedTypes = setOf(TvType.NSFW)
     override val hasDownloadSupport = false
     override val hasMainPage = true
