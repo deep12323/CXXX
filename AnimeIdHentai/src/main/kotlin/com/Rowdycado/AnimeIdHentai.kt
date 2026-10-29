@@ -8,7 +8,7 @@ import com.lagradost.cloudstream3.utils.newExtractorLink
 
 
 class AnimeIdHentai : MainAPI() {
-    override var mainUrl = "https://animeidhentai.com"
+    override var mainUrl = "https://animeidhentai.net"
     override var name = "AnimeIdHentai"
     override val hasQuickSearch = false
     override val hasMainPage = true

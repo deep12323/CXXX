@@ -9,7 +9,7 @@ import org.jsoup.nodes.Element
 import org.json.JSONObject
 
 class NoodleMagazineProvider : MainAPI() { // all providers must be an instance of MainAPI
-    override var mainUrl = "https://tyler-brown.com"
+    override var mainUrl = "https://noodlemagazine.com"
     override var name = "Noodle Magazine"
     override val hasMainPage = true
     override var lang = "en"

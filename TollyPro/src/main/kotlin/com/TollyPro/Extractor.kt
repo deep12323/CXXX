@@ -11,7 +11,7 @@ import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
 class Vidsp : VidhideExtractor() {
-    override var mainUrl = "https://vidsp.lol"
+    override var mainUrl = "https://vidsp.net"
 }
 
 class VidHideplus : VidhideExtractor() {
