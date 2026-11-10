@@ -5,7 +5,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 
 class Xmaza : MainAPI() {
-    override var mainUrl              = "https://xmaza.adult"
+    override var mainUrl              = "https://xmaza.movie"
     override var name                 = "Xmaza"
     override val hasMainPage          = true
     override var lang                 = "hi"
@@ -72,17 +72,29 @@ class Xmaza : MainAPI() {
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
         val document = app.get(data).document
-        val source=document.selectFirst("#my-video source")?.attr("src") ?:""
-        callback.invoke(
-            newExtractorLink(
-                source = this.name,
-                name = this.name,
-                url = source
-            ) {
-                this.referer = data
-                this.quality = Qualities.Unknown.value
-            }
-        )
-        return true
+        val source = document.selectFirst("#my-video source, video source, video")?.attr("src")
+            ?: document.selectFirst("source")?.attr("src")
+            ?: ""
+
+        if (source.isNotBlank()) {
+            callback.invoke(
+                newExtractorLink(
+                    source = this.name,
+                    name = this.name,
+                    url = source
+                ) {
+                    this.referer = data
+                    this.quality = Qualities.Unknown.value
+                }
+            )
+            return true
+        }
+
+        val iframe = document.selectFirst("iframe")?.attr("src")
+        if (!iframe.isNullOrBlank()) {
+            loadExtractor(iframe, data, subtitleCallback, callback)
+            return true
+        }
+        return false
     }
 }

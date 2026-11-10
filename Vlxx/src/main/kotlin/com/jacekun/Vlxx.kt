@@ -19,7 +19,7 @@ class Vlxx : MainAPI() {
     private val globaltvType = TvType.NSFW
 
     override var name = "Vlxx"
-    override var mainUrl = "https://vlxx.sex"
+    override var mainUrl = "https://vlxx.app"
     override val supportedTypes = setOf(TvType.NSFW)
     override val hasDownloadSupport = false
     override val hasMainPage = true
@@ -127,8 +127,8 @@ class Vlxx : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val pathSplits = data.split("/")
-        val id = pathSplits[pathSplits.size - 2]
+        val pathSplits = data.trimEnd('/').split("/")
+        val id = pathSplits.lastOrNull() ?: return false
         Log.i(DEV, "Data -> ${data} id -> ${id}")
         val res = app.post(
             "${mainUrl}/ajax.php",
@@ -142,6 +142,41 @@ class Vlxx : MainAPI() {
         ).text
         Log.i(DEV, "res ${res}")
 
+        // 1. Modern player iframe embed (e.g., play.vlstream.net)
+        val cleanRes = res.replace("\\/", "/")
+        val iframeUrl = Regex("""<iframe[^>]+src=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+            .find(cleanRes)?.groupValues?.get(1)
+
+        if (!iframeUrl.isNullOrEmpty()) {
+            try {
+                val iframeRes = app.get(iframeUrl, referer = "$mainUrl/").text
+                val srcJsonMatch = Regex("""window\.__SRC\s*=\s*(\[.*?\]);""").find(iframeRes)?.groupValues?.get(1)
+                if (srcJsonMatch != null) {
+                    tryParseJson<List<Sources?>>(srcJsonMatch)?.forEach { vidlink ->
+                        vidlink?.file?.let { file ->
+                            val isHls = vidlink.type == "hls" || file.contains(".m3u8") || file.contains(".vl")
+                            val extractorLinkType = if (isHls) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                            callback.invoke(
+                                newExtractorLink(
+                                    source = this.name,
+                                    name = this.name,
+                                    url = file,
+                                    type = extractorLinkType
+                                ).apply {
+                                    this.referer = iframeUrl
+                                    this.quality = getQualityFromName(vidlink.label)
+                                }
+                            )
+                        }
+                    }
+                    return true
+                }
+            } catch (e: Exception) {
+                logError(e)
+            }
+        }
+
+        // 2. Legacy fallback
         val json = getParamFromJS(res, "var opts = {\\r\\n\\t\\t\\t\\t\\t\\tsources:", "}]")
         Log.i(DEV, "json ${json}")
         json?.let {

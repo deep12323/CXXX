@@ -3,9 +3,10 @@ package com.unc
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import com.google.gson.JsonParser
 
 class Uncut99 : MainAPI() {
-    override var mainUrl              = "https://uncut99.com"
+    override var mainUrl              = "https://uncut99.me"
     override var name                 = "Uncut99"
     override val hasMainPage          = true
     override var lang                 = "hi"
@@ -84,15 +85,50 @@ class Uncut99 : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val src = app.get(data).document.select("meta[itemprop=embedURL]").attr("content")
-        
-        //Log.d("link",src)
+        val doc = app.get(data).document
+        val src = doc.selectFirst("meta[itemprop=embedURL]")?.attr("content")
+            ?: doc.selectFirst("div.video-player iframe, iframe")?.attr("src")
+            ?: return false
+
+        if (src.contains("vidara.to")) {
+            val filecode = src.trimEnd('/').substringAfterLast('/')
+            try {
+                val response = app.post(
+                    "https://vidara.to/api/stream",
+                    json = mapOf(
+                        "filecode" to filecode,
+                        "device" to "web",
+                        "codecs" to emptyList<String>()
+                    ),
+                    referer = src
+                ).text
+                val stream = JsonParser.parseString(response).asJsonObject
+                    .get("streaming_url")?.asString
+
+                if (!stream.isNullOrEmpty()) {
+                    callback.invoke(
+                        newExtractorLink(
+                            source = "Vidara",
+                            name = "Vidara",
+                            url = stream,
+                            type = ExtractorLinkType.M3U8
+                        ) {
+                            this.referer = "https://vidara.to/"
+                            this.quality = Qualities.Unknown.value
+                        }
+                    )
+                    return true
+                }
+            } catch (e: Exception) {
+                // fallback below
+            }
+        }
+
         loadExtractor(
-                src,
-                "$mainUrl/",
-                subtitleCallback,
-                callback
-           
+            src,
+            "$mainUrl/",
+            subtitleCallback,
+            callback
         )
         return true
     }

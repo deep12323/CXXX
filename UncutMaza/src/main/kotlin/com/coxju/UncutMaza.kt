@@ -5,7 +5,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 
 class UncutMaza : MainAPI() {
-    override var mainUrl              = "https://uncutmaza.cc"
+    override var mainUrl              = "https://uncutmaza.adult"
     override var name                 = "UncutMaza"
     override val hasMainPage          = true
     override var lang                 = "hi"
@@ -17,17 +17,15 @@ class UncutMaza : MainAPI() {
 
     override val mainPage = mainPageOf(
             "${mainUrl}/page/" to "Home",
-            "${mainUrl}/category/kooku-originals-web-series/page/" to "Kooku",
-            "${mainUrl}/category/ullu-originals-web-series/page/" to "Ullu",
-            "${mainUrl}/category/flizmovies-originals-web-series/page/" to "Fliz movies",
-            "${mainUrl}/category/uncutadda-web-series/page/" to "Uncutadda Webseries",
-            "${mainUrl}/category/hotshots-web-series/page/" to "Hotshots",
-            "${mainUrl}/category/niks-indian-porn/page/" to "Niks Indian",
+            "${mainUrl}/category/ullu-d1/page/" to "Ullu",
+            "${mainUrl}/category/atrangii/page/" to "Atrangii",
+            "${mainUrl}/category/jugnu/page/" to "Jugnu",
+            "${mainUrl}/hot-web-series/page/" to "Hot Web Series"
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val document = app.get(request.data + page).document
-        val home     = document.select("div.videos-list > article.post").mapNotNull { it.toSearchResult() }
+        val home     = document.select("div.videos a.video, a.video, div.videos-list > article.post").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
             list    = HomePageList(
@@ -40,9 +38,18 @@ class UncutMaza : MainAPI() {
     }
 
     private fun Element.toSearchResult(): SearchResponse {
-        val title     = fixTitle(this.select("a").attr("title"))
-        val href      = fixUrl(this.select("a").attr("href"))
-        val posterUrl = fixUrlNull(this.select("a > div.post-thumbnail>div.post-thumbnail-container>img").attr("data-src"))
+        val title = fixTitle(this.attr("title").ifBlank { this.select("h2.vtitle, a").text() })
+        val href = fixUrl(this.attr("href").ifBlank { this.select("a").attr("href") })
+        val posterUrl = fixUrlNull(
+            this.attr("data-bg").ifBlank {
+                val style = this.attr("style")
+                if (style.contains("background-image: url('")) {
+                    style.substringAfter("background-image: url('").substringBefore("'")
+                } else {
+                    this.select("img").attr("data-src").ifBlank { this.select("img").attr("src") }
+                }
+            }
+        )
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl
@@ -55,7 +62,7 @@ class UncutMaza : MainAPI() {
         for (i in 1..5) {
             val document = app.get("${mainUrl}/page/$i?s=$query").document
 
-            val results = document.select("article.post").mapNotNull { it.toSearchResult() }
+            val results = document.select("div.videos a.video, a.video, article.post").mapNotNull { it.toSearchResult() }
 
             if (!searchResponse.containsAll(results)) {
                 searchResponse.addAll(results)
@@ -85,19 +92,31 @@ class UncutMaza : MainAPI() {
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
         val document = app.get(data).document
 
-        document.select("div.video-player").map { res ->
+        val videoUrl = document.selectFirst("video#my-video, video")?.attr("src")
+            ?: document.selectFirst("video#my-video source, video source, source")?.attr("src")
+            ?: document.selectFirst("meta[itemprop=contentURL]")?.attr("content")
+
+        if (!videoUrl.isNullOrBlank()) {
+            val cleanUrl = fixUrl(videoUrl)
             callback.invoke(
                 newExtractorLink(
                     source = this.name,
                     name = this.name,
-                    url = fixUrl(res.selectFirst("meta[itemprop=contentURL]")?.attr("content")?.trim().toString())
+                    url = cleanUrl
                 ) {
                     this.referer = data
                     this.quality = Qualities.Unknown.value
                 }
             )
+            return true
         }
 
-        return true
+        val iframe = document.selectFirst("iframe")?.attr("src")
+        if (!iframe.isNullOrBlank()) {
+            loadExtractor(fixUrl(iframe), data, subtitleCallback, callback)
+            return true
+        }
+
+        return false
     }
 }

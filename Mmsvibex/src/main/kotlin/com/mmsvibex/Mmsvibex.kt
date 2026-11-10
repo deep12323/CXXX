@@ -5,7 +5,7 @@ import com.lagradost.cloudstream3.utils.*
 import org.jsoup.nodes.Element
 
 class Mmsvibex : MainAPI() {
-    override var mainUrl = "https://mmsvibex.fit"
+    override var mainUrl = "https://mmsvibex.life"
     override var name = "Mmsvibex"
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.NSFW)
@@ -87,24 +87,35 @@ class Mmsvibex : MainAPI() {
     ): Boolean {
         val document = app.get(data).document
 
-        val videoLinks = document.select("iframe").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } } +
+        val videoLinks = (
+            document.select("iframe").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } } +
             document.select("video source").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } } +
-            document.select("[src*='cdn.mmsvibex.fit']").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } }
+            document.select("video").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } } +
+            document.select("[src*='mmsvibex']").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } }
+        ).distinct()
 
+        var found = false
         videoLinks.forEach { link ->
-            if (link.contains("mmsvibex.fit")) {
-                callback(
-                    newExtractorLink(name, name, link,
-                        if (link.contains(".m3u8")) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
-                    ) {
-                        this.referer = "$mainUrl/"
-                        this.quality = Qualities.Unknown.value
-                    }
-                )
+            val cleanLink = fixUrl(link)
+            if (cleanLink.contains("mmsvibex") || cleanLink.contains(".mp4") || cleanLink.contains(".m3u8")) {
+                if (!cleanLink.contains("trailer") && !cleanLink.contains("ads") && !cleanLink.contains(".png") && !cleanLink.contains(".jpg")) {
+                    callback(
+                        newExtractorLink(name, name, cleanLink,
+                            if (cleanLink.contains(".m3u8")) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
+                        ) {
+                            this.referer = "$mainUrl/"
+                            this.quality = Qualities.Unknown.value
+                        }
+                    )
+                    found = true
+                }
+            } else {
+                loadExtractor(cleanLink, "$mainUrl/", subtitleCallback, callback)
+                found = true
             }
         }
 
-        return videoLinks.isNotEmpty()
+        return found
     }
 
     private fun Element.toSearchResult(): SearchResponse? {
