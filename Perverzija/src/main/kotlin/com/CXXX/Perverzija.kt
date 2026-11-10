@@ -319,10 +319,22 @@ class Perverzija : MainAPI() {
         val response = app.get(data, interceptor = cfInterceptor)
         val document = response.document
 
-        val iframeUrl = document.select("div#player-embed iframe").attr("src")
+        val iframes = (
+            document.select("div#player-embed iframe, iframe").mapNotNull { it.attr("src").takeIf { s -> s.isNotEmpty() } }
+        ).distinct()
 
-        Xtremestream().getUrl(iframeUrl, data, subtitleCallback, callback)
+        var found = false
+        for (iframeUrl in iframes) {
+            val cleanUrl = fixUrl(iframeUrl)
+            if (cleanUrl.contains("xtremestream") || cleanUrl.contains("player/index.php")) {
+                Xtremestream().getUrl(cleanUrl, data, subtitleCallback, callback)
+                found = true
+            } else {
+                loadExtractor(cleanUrl, data, subtitleCallback, callback)
+                found = true
+            }
+        }
 
-        return true
+        return found
     }
 }
