@@ -1,0 +1,8 @@
+{
+  "name": "CXXX",
+  "description": "CXXX Repository",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://cdn.jsdelivr.net/gh/deep12323/CXXX@builds/plugins.json"
+  ]
+}
