@@ -6,7 +6,8 @@ An extensions repository for [CloudStream 3](https://github.com/recloudstream/cl
 
 ## 📥 Installation in CloudStream
 
-### Option 1: Direct Repository URL (Recommended)
+### Option 1: Fast CDN URL (Recommended — No VPN Required)
+Bypasses all ISP blocks (Jio, Airtel, Vi, etc.) without requiring a VPN:
 
 1. Open the **CloudStream** application.
 2. Go to **Settings** ⚙️ → **Extensions**.
@@ -15,19 +16,34 @@ An extensions repository for [CloudStream 3](https://github.com/recloudstream/cl
    - **Repository Name:** `CXXX`
    - **Repository URL:**
      ```text
-     https://raw.githubusercontent.com/deep12323/CXXX/builds/repo.json
+     https://cdn.jsdelivr.net/gh/deep12323/CXXX@builds/repo.json
      ```
-     *(Alternative manifest URL: `https://raw.githubusercontent.com/deep12323/CXXX/builds/CXXX.json`)*
-5. Tap **Add repository** / **Download**.
-6. Navigate to your extensions list to install your desired extensions.
+     *(Alternative manifest URL: `https://cdn.jsdelivr.net/gh/deep12323/CXXX@builds/CXXX.json`)*
+5. Tap **Download**.
 
 ---
 
-### Option 2: Upstream Shortcode
+### Option 2: Direct GitHub Raw URL
+*Note: If your ISP blocks `raw.githubusercontent.com`, enable **GitHub Proxy** under Settings → General / Updates.*
 
-If you prefer using the upstream shortcode:
+- **Repository URL:**
+  ```text
+  https://raw.githubusercontent.com/deep12323/CXXX/builds/repo.json
+  ```
+
+---
+
+### Option 3: Shortcodes
 - **Shortcode:** `PhisherCXX`
 - **Upstream URL:** `https://raw.githubusercontent.com/phisher98/CXXX/builds/CXXX.json`
+
+---
+
+## ⚠️ Important: Enable NSFW Content
+Because CXXX hosts adult extensions, CloudStream will hide the extensions until NSFW is enabled:
+1. Go to **Settings** ⚙️ → **Providers** (or **Preferred media**).
+2. Toggle **ON** `NSFW`.
+3. Toggle **ON** `Enable NSFW on supported Extensions`.
 
 ---
 

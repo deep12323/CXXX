@@ -51,13 +51,14 @@ jobs:
           chmod +x gradlew
           ./gradlew make makePluginsJson
           cp **/build/*.cs3 $GITHUB_WORKSPACE/builds
+          sed -i "s|https://raw.githubusercontent.com/$GITHUB_REPOSITORY/builds/|https://cdn.jsdelivr.net/gh/$GITHUB_REPOSITORY@builds/|g" build/plugins.json
           cp build/plugins.json $GITHUB_WORKSPACE/builds
           echo '{' > "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  "name": "CXXX",' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  "description": "CXXX Repository",' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  "manifestVersion": 1,' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  "pluginLists": [' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
-          echo "    \"https://raw.githubusercontent.com/$GITHUB_REPOSITORY/builds/plugins.json\"" >> "$GITHUB_WORKSPACE/builds/CXXX.json"
+          echo "    \"https://cdn.jsdelivr.net/gh/$GITHUB_REPOSITORY@builds/plugins.json\"" >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '  ]' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           echo '}' >> "$GITHUB_WORKSPACE/builds/CXXX.json"
           cp "$GITHUB_WORKSPACE/builds/CXXX.json" "$GITHUB_WORKSPACE/builds/repo.json"
