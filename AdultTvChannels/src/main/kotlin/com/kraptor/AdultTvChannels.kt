@@ -89,6 +89,21 @@ class AdultTvChannels : MainAPI() {
             )
         ).document
 
+        if (url.contains("adult-tv-channels.click")) {
+            val title       = document.selectFirst("h1")?.text()?.trim() ?: return null
+            val poster      = fixUrlNull(
+                document.selectFirst("div.card img, img.rounded")?.attr("src")
+                    ?: document.selectFirst("meta[property=og:image]")?.attr("content")
+            )
+            val description = document.selectFirst("meta[name=description]")?.attr("content")?.trim()
+                ?: "Watch Live Adult TV - $title"
+
+            return newLiveStreamLoadResponse(title, url, url) {
+                this.posterUrl = poster
+                this.plot      = description
+            }
+        }
+
         val title       = document.selectFirst("h1")?.text()?.trim() ?: return null
         val poster      = fixUrlNull(
             document.selectFirst("figure.entry-thumb img")?.attr("src")
@@ -112,6 +127,72 @@ class AdultTvChannels : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         Log.d(name, "loadLinks data=$data")
+
+        if (data.contains("adult-tv-channels.click")) {
+            val html = try {
+                app.get(
+                    data,
+                    headers = mapOf(
+                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+                    )
+                ).text
+            } catch (e: Exception) {
+                Log.d(name, "loadLinks click error: ${e.message}")
+                null
+            }
+
+            val clickUrls = mutableListOf<String>()
+            if (data.endsWith(".m3u8")) {
+                clickUrls.add(data)
+            }
+            if (html != null) {
+                val sourceRegex = Regex("""sourceUrl\s*:\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+                val fallbackRegex = Regex("""fallbackUrl\s*:\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+                val m3u8Regex = Regex("""["'](https?:[^"']+\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE)
+
+                sourceRegex.find(html)?.groupValues?.get(1)?.ifBlank { null }?.let { clickUrls.add(it) }
+                fallbackRegex.find(html)?.groupValues?.get(1)?.ifBlank { null }?.let { clickUrls.add(it) }
+                m3u8Regex.findAll(html).forEach { match ->
+                    val u = match.groupValues[1].ifBlank { null }
+                    if (u != null && !clickUrls.contains(u)) {
+                        clickUrls.add(u)
+                    }
+                }
+            }
+
+            val distinct = clickUrls.distinct()
+            if (distinct.isNotEmpty()) {
+                distinct.forEachIndexed { index, rawUrl ->
+                    val finalUrl = when {
+                        rawUrl.startsWith("//") -> "https:$rawUrl"
+                        rawUrl.startsWith("http:") -> rawUrl.replace("http:", "https:")
+                        !rawUrl.startsWith("http") -> fixUrl(rawUrl)
+                        else -> rawUrl
+                    }
+                    val linkName = if (distinct.size > 1) {
+                        if (index == 0) "$name (Click)" else "$name (Click Mirror $index)"
+                    } else {
+                        "$name (Click)"
+                    }
+                    callback.invoke(
+                        newExtractorLink(
+                            name = linkName,
+                            source = name,
+                            url = finalUrl,
+                            type = ExtractorLinkType.M3U8
+                        ) {
+                            this.referer = "https://adult-tv-channels.click/"
+                            this.headers = mapOf(
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                                "Referer" to "https://adult-tv-channels.click/",
+                                "Origin" to "https://adult-tv-channels.click"
+                            )
+                        }
+                    )
+                }
+                return true
+            }
+        }
 
         val iframeUrl = if (data.contains("/tv/") || data.endsWith(".php")) {
             data
