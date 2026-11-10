@@ -67,14 +67,15 @@ open class Xtremestream : ExtractorApi() {
                                 val resMatch = Regex("""RESOLUTION=\d+x(\d+)""").find(trimmed)
                                 currentQuality = resMatch?.groupValues?.get(1)?.toIntOrNull()
                             } else if (trimmed.startsWith("http") && currentQuality != null) {
+                                val qualityVal = currentQuality
                                 callback.invoke(
                                     newExtractorLink(
                                         source = name,
-                                        name = "$name ${currentQuality}p",
+                                        name = "$name ${qualityVal}p",
                                         url = trimmed,
                                         type = ExtractorLinkType.M3U8
                                     ) {
-                                        this.quality = currentQuality
+                                        this.quality = qualityVal
                                         this.referer = cleanUrl
                                         this.headers = mapOf(
                                             "Referer" to cleanUrl,
